@@ -1,0 +1,25 @@
+{
+  "name": "Absen Wakil Kepala Sekolah",
+  "short_name": "Absen Wakil",
+  "id": "./index.html?p=wakil",
+  "start_url": "./index.html?p=wakil",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "icon-wakil-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-wakil-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

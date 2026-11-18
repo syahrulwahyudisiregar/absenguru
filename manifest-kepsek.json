@@ -1,0 +1,25 @@
+{
+  "name": "Absen Kepala Sekolah",
+  "short_name": "Absen Kepsek",
+  "id": "./index.html?p=kepsek",
+  "start_url": "./index.html?p=kepsek",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "icon-kepsek-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-kepsek-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
