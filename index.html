@@ -1411,9 +1411,9 @@ function gsMenu(){
   $('gsJudul').textContent='Pengaturan';$('gsKembali').classList.remove('hide');
   $('gsBody').innerHTML='<div class="grid"><button class="card" data-g="wajah"><span class="ic">🙂</span>Daftar Wajah</button>'+
     '<button class="card" data-g="pin"><span class="ic">🔢</span>Ubah PIN</button>'+
-    '<button class="card" data-g="rekap"><span class="ic">📈</span>Rekap Saya</button></div>';
+    '<button class="card" data-g="rekap"><span class="ic">📈</span>Rekap Saya</button>'+'<button class="card" data-g="roster"><span class="ic">📚</span>Roster Mengajar<span class="muted" style="font-size:11px">Segera hadir</span></button>'+'<button class="card" data-g="piket"><span class="ic">📆</span>Jadwal Piket<span class="muted" style="font-size:11px">Segera hadir</span></button>'+'<button class="card" data-g="libur"><span class="ic">📅</span>Hari Libur<span class="muted" style="font-size:11px">Segera hadir</span></button></div>';
   $('gsBody').onclick=e=>{const b=e.target.closest('[data-g]');if(!b)return;
-    if(b.dataset.g==='wajah')bukaDaftar('guru');else if(b.dataset.g==='pin')gsPin(false);else gsRekap();};
+    if(b.dataset.g==='wajah')bukaDaftar('guru');else if(b.dataset.g==='pin')gsPin(false);else if(b.dataset.g==='rekap')gsRekap();else gsSegera(b.dataset.g);};
   show('sGSet');backFn=gBuka;
 }
 function gsPin(wajib){
@@ -1434,6 +1434,15 @@ function gsPin(wajib){
     if(r.ok){if(wajib)gBuka();else gsMenu();}
   });
   show('sGSet');backFn=wajib?null:gsMenu;
+}
+// fitur yang belum jadi: tampil 'Segera hadir'
+const SEGERA={roster:'Roster Mengajar',piket:'Jadwal Piket',libur:'Hari Libur'};
+function gsSegera(k){
+  const judul=SEGERA[k]||'Fitur';
+  $('gsJudul').textContent=judul;$('gsKembali').classList.remove('hide');
+  $('gsBody').onclick=null;
+  $('gsBody').innerHTML='<div class="box" style="text-align:center;padding:28px 14px"><div style="font-size:44px">🚧</div><h3 style="margin-top:10px">Segera hadir</h3><p class="muted" style="margin-top:6px">Fitur '+esc(judul)+' sedang disiapkan.</p></div>';
+  show('sGSet');backFn=gsMenu;
 }
 async function gsRekap(){
   $('gsJudul').textContent='Rekap Saya';$('gsKembali').classList.remove('hide');
