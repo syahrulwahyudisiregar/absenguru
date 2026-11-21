@@ -1199,7 +1199,7 @@ function gLokMulai(){
   if(GR.wid!=null)return;
   if(!navigator.geolocation){GR.locErr='Perangkat tidak mendukung lokasi';return;}
   GR.wid=navigator.geolocation.watchPosition(
-    p=>{GR.pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};GR.locErr='';},
+    p=>{GR.pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,t:Date.now()};GR.locErr='';},
     e=>{GR.pos=null;GR.locErr=e.code===1?'Izin lokasi ditolak. Izinkan Lokasi untuk situs ini.':'Lokasi belum terbaca';},
     {enableHighAccuracy:true,maximumAge:10000,timeout:20000});
 }
@@ -1208,8 +1208,9 @@ function gLokStat(){
   if(!GR.info)return{ok:false,t:'Mencari lokasi...',c:'warn'};
   if(!L||!L.ada)return{ok:false,t:'Lokasi sekolah belum diatur',c:'bad'};
   if(GR.locErr)return{ok:false,t:GR.locErr,c:'bad'};
-  if(!GR.pos)return{ok:false,t:'Mencari lokasi...',c:'warn'};
-  const j=jarakM(GR.pos.lat,GR.pos.lng,L.lat,L.lng),tol=Math.min(GR.pos.acc||0,30),ok=j-tol<=L.radius;
+  if(!GR.pos||Date.now()-GR.pos.t>60000)return{ok:false,t:'Mencari lokasi...',c:'warn'};
+  if((GR.pos.acc||0)>50)return{ok:false,t:'GPS belum akurat (±'+Math.round(GR.pos.acc)+' m), cari tempat terbuka',c:'warn'};
+  const j=jarakM(GR.pos.lat,GR.pos.lng,L.lat,L.lng),ok=j<=L.radius; // harus di dalam radius, tanpa toleransi
   return{ok,j,t:ok?'Di area sekolah ('+Math.round(j)+' m)':'Di luar area sekolah ('+Math.round(j)+' m dari sekolah)',c:ok?'ok':'bad'};
 }
 
@@ -1334,24 +1335,30 @@ $('gPrevKirim').onclick=()=>gPrevKirim();
 $('gManual').onclick=()=>gManual();
 async function gKirim(manual,sk,foto){
   GR.lock=true;$('gPilih').classList.add('hide');
-  setPesanG('Mencatat absen...');
   const p=GR.pos||{};
-  try{
-    const r=await api('catatAbsen',devId(),SES.guruId,sk,SES.token,foto,{manual:!!manual,lat:p.lat,lng:p.lng,acc:p.acc});
+  const g={nama:GR.info.nama||SES.nama,sapaan:GR.info.sapaan||''};
+  // hasil langsung tampil; server dicatat di latar. Kalau ditolak, layar menampilkan alasannya.
+  bunyi(true);
+  gHasil('ok','✅','Terima kasih, '+g.nama,jamStr(wib())+' WIB'+(manual?' • Foto manual':''),kalimat(g,sk));
+  api('catatAbsen',devId(),SES.guruId,sk,SES.token,foto,{manual:!!manual,lat:p.lat,lng:p.lng,acc:p.acc}).then(r=>{
     if(r.ok||r.sudah){
-      GR.sudah[sk]=r.jam||'-';
-      const g={nama:GR.info.nama||SES.nama,sapaan:GR.info.sapaan||''};
-      bunyi(!!r.ok);
-      if(r.ok)gHasil('ok','✅','Terima kasih, '+g.nama,r.jam+' WIB'+(manual?' • Foto manual':''),kalimat(g,sk));
-      else gHasil('warn','ℹ️',g.nama,'Sudah absen '+(sk==='pagi'?'pagi':'siang')+' hari ini','');
+      GR.sudah[sk]=r.jam||GR.sudah[sk]||'-';
+      if(!r.ok)gSudahTampil(g.nama,sk);
       return;
     }
-    bunyi(false);GR.lock=false;GR.phase='pilih';
-    gPilih(true,r.pesan||'Absen tidak tercatat');toast(r.pesan||'Absen tidak tercatat',5000);
-  }catch(e){
-    GR.lock=false;GR.phase='pilih';bunyi(false);
-    gPilih(true,e.message);toast(e.message,5000);
-  }
+    gGagal(g.nama,r.pesan||'Absen tidak tercatat');
+  }).catch(e=>gGagal(g.nama,e.message||'Gagal mencatat, coba lagi'));
+}
+// hasil server datang setelah layar sudah ditutup: cukup beri tahu lewat toast
+function gSudahTampil(nama,sk){
+  bunyi(false);
+  const t='Sudah absen '+(sk==='pagi'?'pagi':'siang')+' hari ini';
+  if($('gHasil').classList.contains('show'))gHasil('warn','ℹ️',nama,t,'');else toast(nama+': '+t,5000);
+}
+function gGagal(nama,pesan){
+  bunyi(false);
+  if($('gHasil').classList.contains('show')){gHasil('bad','⚠️',nama,pesan,'');}
+  else{toast(nama+': '+pesan,6000);GR.lock=false;GR.phase='cari';GR.t0=0;}
 }
 function gHasil(cls,ikon,nama,info,teks){
   const h=$('gHasil');h.className='show '+cls;
