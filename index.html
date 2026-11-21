@@ -6,7 +6,8 @@
 <title>Absensi Guru - SMPN 7 Padangsidimpuan</title>
 <script>
 /* Pintasan per peran: ?p=super|admin|kepsek|wakil memakai manifest & ikon sendiri; tablet (tanpa ?p=) memakai manifest.json */
-(function(){var P={super:'Absen Super',admin:'Absen Admin',kepsek:'Absen Kepsek',wakil:'Absen Wakil',guru:'Absen Guru'},p=new URLSearchParams(location.search).get('p');
+(function(){var P={super:'Absen Super',admin:'Absen Admin',kepsek:'Absen Kepsek',wakil:'Absen Wakil',guru:'Absen Guru'},q=new URLSearchParams(location.search),p=q.get('p'),K=q.get('k');
+if(p==='guru'&&K){var B=location.href.split('?')[0],at=function(f){return new URL(f,B).href;},mj=JSON.stringify({name:'Absen Guru',short_name:'Absen Guru',start_url:B+'?p=guru&k='+encodeURIComponent(K),scope:new URL('./',B).href,display:'standalone',orientation:'portrait',background_color:'#1e40af',theme_color:'#1e40af',icons:[{src:at('icon-guru-192.png'),sizes:'192x192',type:'image/png',purpose:'any maskable'},{src:at('icon-guru-512.png'),sizes:'512x512',type:'image/png',purpose:'any maskable'}]});document.write('<link rel="manifest" href="'+URL.createObjectURL(new Blob([mj],{type:'application/manifest+json'}))+'"><meta name="apple-mobile-web-app-title" content="Absen Guru"><link rel="apple-touch-icon" href="'+at('icon-guru-192.png')+'">');return;}
 if(p&&P.hasOwnProperty(p)){document.write('<link rel="manifest" href="manifest-'+p+'.json"><meta name="apple-mobile-web-app-title" content="'+P[p]+'"><link rel="apple-touch-icon" href="icon-'+p+'-192.png">');}
 else{document.write('<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png">');}})();
 </script>
@@ -208,6 +209,9 @@ table.fit th:first-child,table.fit td:first-child{width:26px;text-align:center}
 #ghUcap{font-size:clamp(18px,4.6vw,30px);margin-top:18px;max-width:640px;line-height:1.35}
 .ght{margin-top:26px;font-size:14px;opacity:.85}
 .lnk{display:flex;gap:8px}.lnk input{flex:1;min-width:0}
+#gPrev{position:fixed;inset:0;z-index:58;background:rgba(15,23,42,.94);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:18px}
+#gPrev.show{display:flex}
+#gPrevImg{width:min(88vw,380px);max-height:60vh;object-fit:contain;border-radius:14px;background:#000}
 </style>
 </head>
 <body>
@@ -310,6 +314,8 @@ table.fit th:first-child,table.fit td:first-child{width:26px;text-align:center}
   <footer class="gf"><button class="btn ok" id="gManual">Absen Manual (Foto)</button><button class="btn gray" id="gSet">Pengaturan</button></footer>
 </div>
 
+<!-- ===== PRATINJAU FOTO MANUAL (HP guru) ===== -->
+<div id="gPrev"><div style="color:#fff;font-size:18px;font-weight:700">Periksa foto sebelum dikirim</div><img id="gPrevImg" alt="Pratinjau foto"><div class="row" style="width:min(380px,100%)"><button class="btn gray" id="gPrevUlang">Foto Ulang</button><button class="btn ok" id="gPrevKirim">Kirim</button></div></div>
 <!-- ===== HASIL ABSEN GURU (ketuk untuk menutup) ===== -->
 <div id="gHasil"><div id="ghIkon"></div><div id="ghNama"></div><div id="ghInfo"></div><div id="ghUcap"></div><div class="ght">Ketuk layar untuk menutup</div></div>
 
@@ -340,7 +346,6 @@ table.fit th:first-child,table.fit td:first-child{width:26px;text-align:center}
 <div id="toast"></div>
 <div id="fz"><img alt="Foto absen"></div>
 <div class="ver">Ver. 007</div>
-<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
 /* ================= UTIL ================= */
@@ -532,8 +537,15 @@ function gambar(cv,v,box,warna){
 
 /* ================= FACE-API ================= */
 let modelOk=false;
+let faceLoad=null;
+function muatLib(){ // face-api dimuat hanya saat pertama dibutuhkan (HP guru login tanpa kamera jadi cepat)
+  if(window.faceapi)return Promise.resolve();
+  if(!faceLoad)faceLoad=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js';s.crossOrigin='anonymous';s.onload=res;s.onerror=()=>{faceLoad=null;rej(new Error('Gagal memuat pengenalan wajah. Periksa internet.'));};document.head.appendChild(s);});
+  return faceLoad;
+}
 async function muatModel(){
   if(modelOk)return;
+  await muatLib();
   try{if(faceapi.tf&&faceapi.tf.setBackend){await faceapi.tf.setBackend('webgl');await faceapi.tf.ready();}}catch(e){}
   await Promise.all([
     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -544,17 +556,13 @@ async function muatModel(){
 }
 const OPT=sz=>new faceapi.TinyFaceDetectorOptions({inputSize:sz,scoreThreshold:.4});
 const luas=d=>d.detection.box.width*d.detection.box.height;
-async function cariWajah(v){ // wajah terbesar + landmark (ringan: inputSize 160)
-  const r=await faceapi.detectAllFaces(v,OPT(160)).withFaceLandmarks();
-  if(!r.length)return{n:0,f:null};
-  r.sort((a,b)=>luas(b)-luas(a));
-  return{n:r.length,f:r[0]};
+async function cariWajah(v){ // satu wajah + landmark (ringan: inputSize 160)
+  const r=await faceapi.detectSingleFace(v,OPT(160)).withFaceLandmarks();
+  return r?{n:1,f:r}:{n:0,f:null};
 }
-async function ambilDesk(v){ // descriptor wajah terbesar (inputSize 224, sama untuk daftar & absen)
-  const r=await faceapi.detectAllFaces(v,OPT(224)).withFaceLandmarks().withFaceDescriptors();
-  if(!r.length)return null;
-  r.sort((a,b)=>luas(b)-luas(a));
-  return r[0].descriptor;
+async function ambilDesk(v){ // descriptor satu wajah (inputSize 224, sama untuk daftar & absen)
+  const r=await faceapi.detectSingleFace(v,OPT(224)).withFaceLandmarks().withFaceDescriptor();
+  return r?r.descriptor:null;
 }
 const _d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const _ear=p=>(_d(p[1],p[5])+_d(p[2],p[4]))/(2*_d(p[0],p[3]));
@@ -1089,6 +1097,7 @@ async function initGuru(){
   glMuatNama();
 }
 async function glMuatNama(){
+  $('glErr').textContent='Memuat daftar nama...';
   try{
     GL.daftar=await api('getDaftarNamaGuru',GL.kode);
     acPasang('glNama',GL.daftar);
@@ -1104,12 +1113,13 @@ function glTekan(k){
   $('glErr').textContent='';
   if(k==='⌫')GL.pin=GL.pin.slice(0,-1);
   else if(k==='OK'){glMasuk();return;}
-  else if(GL.pin.length<6){GL.pin+=k;if(GL.pin.length===6){glDots();glMasuk();return;}}
+  else if(GL.pin.length<6){GL.pin+=k;}
   glDots();
 }
 async function glMasuk(){
   if(GL.busy)return;
-  const id=acVal('glNama');
+  let id=acVal('glNama');
+  if(!id){const t=(($('glNama').querySelector('input'))||{value:''}).value.trim().toLowerCase();const g=GL.daftar.find(x=>x.nama.trim().toLowerCase()===t);if(g){id=g.id;$('glNama').dataset.val=g.id;}}
   if(!id){$('glErr').textContent='Pilih nama Anda dari daftar';return;}
   if(GL.pin.length!==6){$('glErr').textContent='PIN harus 6 angka';return;}
   GL.busy=true;busy(true,'Masuk...');
@@ -1267,7 +1277,7 @@ function gPilih(adaAuto,pesan){
 $('gUlang').onclick=()=>{GR.phase='cari';GR.t0=0;$('gPilih').classList.add('hide');};
 $('gFotoM').onclick=()=>gManual();
 async function gLangkah(){
-  if($('gHasil').classList.contains('show'))return 500;
+  if($('gHasil').classList.contains('show')||$('gPrev').classList.contains('show'))return 500;
   const S=sesi(),vid=$('vidG'),cv=$('cvG');
   const sk=(S.k==='pagi'||S.k==='siang')?S.k:'';
   if(sk!==GR.sk){ // sesi berganti: mulai ulang & segarkan status dari server
@@ -1308,8 +1318,19 @@ async function gManual(){
   if(GR.sudah[sk]){toast('Anda sudah absen');return;}
   const L=gLokStat();if(!L.ok){toast(L.t,4000);return;}
   if(!GR.cam||!$('vidG').videoWidth){toast('Kamera belum siap');return;}
-  await gKirim(true,sk,ambilFoto($('vidG'),240));
+  const foto=ambilFoto($('vidG'),240);
+  if(!foto){toast('Foto gagal, coba lagi');return;}
+  GR.pFoto=foto;GR.pSk=sk;
+  $('gPrevImg').src=foto;$('gPrev').classList.add('show');
 }
+function gPrevUlang(){$('gPrev').classList.remove('show');GR.pFoto='';}
+async function gPrevKirim(){
+  const foto=GR.pFoto,sk=GR.pSk;if(!foto)return;
+  $('gPrev').classList.remove('show');GR.pFoto='';
+  await gKirim(true,sk,foto);
+}
+$('gPrevUlang').onclick=gPrevUlang;
+$('gPrevKirim').onclick=()=>gPrevKirim();
 $('gManual').onclick=()=>gManual();
 async function gKirim(manual,sk,foto){
   GR.lock=true;$('gPilih').classList.add('hide');
