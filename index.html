@@ -1339,6 +1339,7 @@ async function gKirim(manual,sk,foto){
   const g={nama:GR.info.nama||SES.nama,sapaan:GR.info.sapaan||''};
   // hasil langsung tampil; server dicatat di latar. Kalau ditolak, layar menampilkan alasannya.
   bunyi(true);
+  GR.sudah[sk]=jamStr(wib());gKameraOff(); // kamera langsung mati setelah absen
   gHasil('ok','✅','Terima kasih, '+g.nama,jamStr(wib())+' WIB'+(manual?' • Foto manual':''),kalimat(g,sk));
   api('catatAbsen',devId(),SES.guruId,sk,SES.token,foto,{manual:!!manual,lat:p.lat,lng:p.lng,acc:p.acc}).then(r=>{
     if(r.ok||r.sudah){
@@ -1346,8 +1347,8 @@ async function gKirim(manual,sk,foto){
       if(!r.ok)gSudahTampil(g.nama,sk);
       return;
     }
-    gGagal(g.nama,r.pesan||'Absen tidak tercatat');
-  }).catch(e=>gGagal(g.nama,e.message||'Gagal mencatat, coba lagi'));
+    gGagal(g.nama,r.pesan||'Absen tidak tercatat',sk);
+  }).catch(e=>gGagal(g.nama,e.message||'Gagal mencatat, coba lagi',sk));
 }
 // hasil server datang setelah layar sudah ditutup: cukup beri tahu lewat toast
 function gSudahTampil(nama,sk){
@@ -1355,8 +1356,9 @@ function gSudahTampil(nama,sk){
   const t='Sudah absen '+(sk==='pagi'?'pagi':'siang')+' hari ini';
   if($('gHasil').classList.contains('show'))gHasil('warn','ℹ️',nama,t,'');else toast(nama+': '+t,5000);
 }
-function gGagal(nama,pesan){
+function gGagal(nama,pesan,sk){
   bunyi(false);
+  if(sk)GR.sudah[sk]='';// batalkan status sudah absen yang tampil sementara
   if($('gHasil').classList.contains('show')){gHasil('bad','⚠️',nama,pesan,'');}
   else{toast(nama+': '+pesan,6000);GR.lock=false;GR.phase='cari';GR.t0=0;}
 }
