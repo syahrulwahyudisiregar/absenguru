@@ -6,7 +6,7 @@
 <title>Absensi Guru - SMPN 7 Padangsidimpuan</title>
 <script>
 /* Pintasan per peran: ?p=super|admin|kepsek|wakil memakai manifest & ikon sendiri; tablet (tanpa ?p=) memakai manifest.json */
-(function(){var P={super:'Absen Super',admin:'Absen Admin',kepsek:'Absen Kepsek',wakil:'Absen Wakil'},p=new URLSearchParams(location.search).get('p');
+(function(){var P={super:'Absen Super',admin:'Absen Admin',kepsek:'Absen Kepsek',wakil:'Absen Wakil',guru:'Absen Guru'},p=new URLSearchParams(location.search).get('p');
 if(p&&P.hasOwnProperty(p)){document.write('<link rel="manifest" href="manifest-'+p+'.json"><meta name="apple-mobile-web-app-title" content="'+P[p]+'"><link rel="apple-touch-icon" href="icon-'+p+'-192.png">');}
 else{document.write('<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png">');}})();
 </script>
@@ -182,6 +182,32 @@ table.fit th:first-child,table.fit td:first-child{width:26px;text-align:center}
 #mPin{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:20px}
 #mPin.show{display:flex}
 #mPin .dlg{background:#fff;color:#0f172a;border-radius:18px;padding:20px;width:min(360px,100%);display:flex;flex-direction:column;gap:12px}
+
+/* ---------- Layar Guru (HP) & Absen Saya ---------- */
+.gh{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel);border-bottom:2px solid var(--line)}
+.gh .gi{flex:1;min-width:0}
+.gn{font-weight:800;font-size:clamp(15px,4.4vw,20px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gl{font-size:12px;color:var(--mut);margin-top:2px}
+.gl.ok{color:#86efac}.gl.bad{color:#fca5a5}.gl.warn{color:#fde68a}
+.gc{text-align:right}
+#gTgl{font-size:11px;color:var(--mut)}
+#gJam{font-size:clamp(20px,6vw,30px);font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.stage.off video,.stage.off canvas{visibility:hidden}
+.stage.off::after{content:'\1F4F7';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;opacity:.25}
+.gpil{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:14px 12px;display:flex;flex-direction:column;gap:10px;background:linear-gradient(transparent,rgba(0,0,0,.85))}
+#gPilihT{text-align:center;font-weight:700;font-size:16px}
+.gpil .row>*{min-width:110px}
+.gf{display:flex;gap:10px;padding:10px 12px 14px;background:var(--panel);border-top:2px solid var(--line)}
+.gf .btn{flex:1}
+#gHasil{position:fixed;inset:0;z-index:55;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;cursor:pointer}
+#gHasil.show{display:flex}
+#gHasil.ok{background:var(--ok)}#gHasil.warn{background:var(--warn);color:#1c1917}#gHasil.bad{background:var(--bad)}
+#ghIkon{font-size:clamp(64px,18vw,120px);line-height:1}
+#ghNama{font-size:clamp(24px,6vw,44px);font-weight:800;margin-top:8px}
+#ghInfo{font-size:clamp(18px,4.4vw,28px);margin-top:8px;font-weight:600}
+#ghUcap{font-size:clamp(18px,4.6vw,30px);margin-top:18px;max-width:640px;line-height:1.35}
+.ght{margin-top:26px;font-size:14px;opacity:.85}
+.lnk{display:flex;gap:8px}.lnk input{flex:1;min-width:0}
 </style>
 </head>
 <body>
@@ -252,6 +278,47 @@ table.fit th:first-child,table.fit td:first-child{width:26px;text-align:center}
   </div>
 </div>
 
+<!-- ===== LOGIN GURU (HP, link ?p=guru) ===== -->
+<div id="sGLogin" class="screen light" style="align-items:center;justify-content:flex-start;gap:12px;padding:18px 18px 40px;overflow:auto">
+  <h1 style="font-size:19px;text-align:center;margin-top:6px">SMP NEGERI 7 PADANGSIDIMPUAN</h1>
+  <div style="font-size:15px;color:#475569;font-weight:600">Absen Guru</div>
+  <div style="width:min(340px,100%)"><label style="margin-top:0">Nama</label><div id="glNama"></div></div>
+  <div class="dots" id="glDots"></div>
+  <div id="glErr" style="color:#dc2626;min-height:20px;font-weight:600;text-align:center"></div>
+  <div class="pad" id="glPad"></div>
+  <div class="row" style="width:min(340px,100%);margin-top:6px">
+    <button class="btn gray hide" id="glInstal">Pasang Aplikasi</button>
+    <button class="btn ghost" id="glKeluarApp" style="color:#475569;border-color:#94a3b8">Keluar Aplikasi</button>
+  </div>
+  <p class="muted" id="glHint" style="text-align:center;max-width:340px"></p>
+</div>
+
+<!-- ===== LAYAR ABSEN GURU / ABSEN SAYA (KAMERA) ===== -->
+<div id="sGuru" class="screen">
+  <header class="gh">
+    <div class="gi"><div class="gn" id="gNama"></div><div class="gl" id="gLok">Mencari lokasi...</div></div>
+    <div class="gc"><div id="gTgl"></div><div id="gJam">--:--:--</div></div>
+    <button class="btn sm ghost" id="gKeluar">Keluar</button>
+  </header>
+  <main class="mid">
+    <div class="stage off" id="gStage"><video id="vidG" autoplay muted playsinline></video><canvas id="cvG"></canvas>
+      <div class="gpil hide" id="gPilih"><div id="gPilihT"></div>
+        <div class="row"><button class="btn" id="gUlang">Coba Lagi</button><button class="btn ok" id="gFotoM">Foto Manual</button></div></div>
+    </div>
+    <div id="gPesan" class="pesan">Memuat...</div>
+  </main>
+  <footer class="gf"><button class="btn ok" id="gManual">Absen Manual (Foto)</button><button class="btn gray" id="gSet">Pengaturan</button></footer>
+</div>
+
+<!-- ===== HASIL ABSEN GURU (ketuk untuk menutup) ===== -->
+<div id="gHasil"><div id="ghIkon"></div><div id="ghNama"></div><div id="ghInfo"></div><div id="ghUcap"></div><div class="ght">Ketuk layar untuk menutup</div></div>
+
+<!-- ===== PENGATURAN GURU ===== -->
+<div id="sGSet" class="screen light">
+  <div class="top"><button class="btn" id="gsKembali">&larr; Kembali</button><h2 id="gsJudul"></h2></div>
+  <div class="body" id="gsBody"></div>
+</div>
+
 <!-- ===== MODAL PIN DAFTAR WAJAH (TABLET) ===== -->
 <div id="mPin">
   <div class="dlg">
@@ -272,7 +339,7 @@ table.fit th:first-child,table.fit td:first-child{width:26px;text-align:center}
 <div id="loading">Memproses...</div>
 <div id="toast"></div>
 <div id="fz"><img alt="Foto absen"></div>
-<div class="ver">Ver. 006</div>
+<div class="ver">Ver. 007</div>
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
@@ -307,7 +374,7 @@ async function api(fn,...args){
 }
 function ambilMode(){
   return new Promise(res=>{
-    const fin=p=>res(['admin','super','kepsek','wakil'].includes(p)?p:'tablet');
+    const fin=p=>res(['admin','super','kepsek','wakil','guru'].includes(p)?p:'tablet');
     try{
       if(window.google&&google.script&&google.script.url){
         google.script.url.getLocation(l=>fin((l.parameter||{}).p));return;
@@ -499,7 +566,10 @@ const KC='wajahCache';
 function olahDB(a){
   DB=(a||[]).map(g=>({id:g.id,nama:g.nama,nip:g.nip,mapel:g.mapel,sapaan:g.sapaan||'',desc:(g.desc||[]).map(x=>new Float32Array(x))}));
 }
-async function muatDB(){
+async function muatDB(saja){
+  if(saja){ // HP guru / Absen Saya: hanya wajah sendiri, tanpa disimpan di perangkat
+    olahDB(await api('getDataWajah',devId(),SES.token,true));return true;
+  }
   try{
     const a=await api('getDataWajah',devId(),SES.token);
     try{localStorage.setItem(KC,JSON.stringify(a));}catch(e){}
@@ -544,6 +614,16 @@ function simpanSudah(){
   try{localStorage.setItem('sudah',JSON.stringify({t:tglIso(wib()),k:TB.sudah}));}catch(e){}
 }
 function tandaSudah(k){TB.sudah[k]=1;simpanSudah();}
+// absen yang direset admin: hapus tanda "sudah absen" di tablet ini
+async function sinkReset(){
+  try{
+    const a=await api('getResetHariIni',devId());
+    const last=+(localStorage.getItem('resetT')||0),tgl=tglIso(wib());let mx=last,u=false;
+    a.forEach(x=>{if(x.t>last){const k=tgl+x.sesi+x.id;if(TB.sudah[k]){delete TB.sudah[k];u=true;}if(x.t>mx)mx=x.t;}});
+    if(u)simpanSudah();
+    localStorage.setItem('resetT',String(mx));
+  }catch(e){}
+}
 
 /* ---- antrean offline ---- */
 const antrean=()=>{try{return JSON.parse(localStorage.getItem('antrean')||'[]');}catch(e){return[];}};
@@ -581,9 +661,9 @@ function tampilBerhasil(g,k,jam,off){
 }
 
 /* ---- foto absen: sekecil mungkin (lebar 160px, JPEG 0,45) ---- */
-function ambilFoto(v){
+function ambilFoto(v,lebar){
   try{
-    const w=160,h=Math.round(w*v.videoHeight/v.videoWidth),c=document.createElement('canvas');
+    const w=lebar||160,h=Math.round(w*v.videoHeight/v.videoWidth),c=document.createElement('canvas');
     c.width=w;c.height=h;c.getContext('2d').drawImage(v,0,0,w,h);
     return c.toDataURL('image/jpeg',0.45);
   }catch(e){return '';}
@@ -678,7 +758,7 @@ async function bootTablet(){
   setPesan('Memuat model wajah...');
   try{await muatModel();}
   catch(e){setPesan('Gagal memuat model wajah. Periksa internet.','bad');setTimeout(bootTablet,10000);return;}
-  await muatDB();muatSudah();muatRekap();
+  await muatDB();muatSudah();await sinkReset();muatRekap();
   startKamera();
 }
 function initTablet(){
@@ -688,6 +768,7 @@ function initTablet(){
   onTick=()=>labelSesi();
   setInterval(sinkron,30000);
   setInterval(muatRekap,60000);
+  setInterval(sinkReset,30000);
   setInterval(()=>{if(TB.run&&!TB.lock)muatDB();},600000);
   bootTablet();
 }
@@ -738,16 +819,21 @@ const ROLE={super:'Super Admin',admin:'Admin',kepsek:'Kepala Sekolah',wakil:'Wak
 const MENU_DEF=[
  {k:'dash',l:'Absen',ic:'📊'},
  {k:'guru',l:'Data Guru',ic:'👩‍🏫'},
+ {k:'piket',l:'Piket&Libur',ic:'📆'},
  {k:'wajah',l:'Daftar Wajah',ic:'🙂'},
  {k:'absen',l:'Edit Absen Hari Ini',ic:'🕐'},
  {k:'status',l:'Status Manual',ic:'📝'},
+ {k:'reset',l:'Reset Absen',ic:'♻️'},
  {k:'rekap',l:'Rekap & Ekspor',ic:'📈'},
  {k:'libur',l:'Hari Libur',ic:'📅'},
+ {k:'jadwal',l:'Jadwal Absen',ic:'🗓️'},
+ {k:'hariini',l:'Jadwal Hari Ini',ic:'⏰'},
+ {k:'lokasi',l:'Lokasi Sekolah',ic:'📍'},
+ {k:'link',l:'Link Guru',ic:'🔗'},
  {k:'set',l:'Pengaturan',ic:'⚙️'},
  {k:'hak',l:'Hak Akses',ic:'🔐'},
  {k:'pin',l:'PIN',ic:'🔢'},
  {k:'tablet',l:'Daftar Tablet',ic:'📱'},
- {k:'jadwal',l:'Jadwal Absen Harian',ic:'🗓️'},
  {k:'log',l:'Log',ic:'📋'},
  {k:'backup',l:'Backup',ic:'💾'},
  {k:'saya',l:'Absen Saya',ic:'🤳'}
@@ -805,7 +891,7 @@ function logout(){
 $('hmGrid').onclick=e=>{const b=e.target.closest('.card');if(b)tapMenu(b.dataset.k);};
 function tapMenu(k){
   if(k==='wajah')bukaDaftar('admin');
-  else if(k==='saya')bukaDaftar('saya');
+  else if(k==='saya')bukaSaya();
   else bukaPage(k);
 }
 function bukaPage(k){
@@ -820,7 +906,7 @@ function bukaPage(k){
 $('btnKembali').onclick=keHome;
 $('btnKeluar').onclick=logout;
 
-/* ================= DAFTAR WAJAH & ABSEN SAYA ================= */
+/* ================= DAFTAR WAJAH ================= */
 const DF={mode:'',tk:'',guru:[],desc:[],mirip:'',stop:false,busy:false};
 // yaw > 0 = tengok kiri (sudut pandang orang), karena kamera tidak dicerminkan pada data
 const LANGKAH=[
@@ -832,9 +918,9 @@ const LANGKAH=[
 const EXTRA={t:'Hadap depan (pakai kacamata/jilbab bila biasa dipakai)',ok:y=>Math.abs(y)<.07};
 const MAXS=10;
 const dsleep=ms=>new Promise(r=>setTimeout(r,ms));
+const idDaftar=()=>DF.mode==='guru'?SES.guruId:$('dGuru').value; // guru hanya mendaftarkan wajahnya sendiri
 
 function rProg(){
-  if(DF.mode==='saya'){$('dProg').innerHTML='';return;}
   const n=Math.max(LANGKAH.length,DF.desc.length);
   $('dProg').innerHTML=Array.from({length:n},(_,i)=>'<i class="'+(i<DF.desc.length?'on':'')+'"></i>').join('');
 }
@@ -844,8 +930,7 @@ function tampilSimpan(on){
   b.classList.toggle('hide',!on);
 }
 function labelMulai(){
-  if(DF.mode==='saya')$('dMulai').textContent='Absen Sekarang';
-  else $('dMulai').textContent=DF.desc.length>=LANGKAH.length?'Tambah Sampel':'Mulai';
+  $('dMulai').textContent=DF.desc.length>=LANGKAH.length?'Tambah Sampel':'Mulai';
 }
 function isiGuru(pilih){
   $('dGuru').innerHTML='<option value="">- pilih guru -</option>'+DF.guru.map(g=>
@@ -856,10 +941,10 @@ $('dGuru').onchange=()=>{DF.desc=[];DF.mirip='';rProg();tampilSimpan(false);labe
 
 async function bukaDaftar(mode,token){
   DF.mode=mode;DF.tk=mode==='tablet'?token:SES.token;DF.desc=[];DF.mirip='';DF.stop=false;DF.busy=false;
-  const saya=mode==='saya';
-  $('dJudul').textContent=saya?'Absen Saya':'Daftar Wajah';
-  $('dPilih').classList.toggle('hide',saya);
-  $('dUji').classList.toggle('hide',saya);
+  const sendiri=mode==='guru';
+  $('dJudul').textContent='Daftar Wajah';
+  $('dPilih').classList.toggle('hide',sendiri);
+  $('dUji').classList.remove('hide');
   $('dCatatan').textContent=mode==='admin'?'Disarankan mendaftar di tablet sekolah (kamera & cahaya sama dengan lokasi absen).':'';
   $('dInstr').textContent='Memuat...';$('dInfo').textContent='';
   $('dMulai').disabled=false;$('dUji').disabled=false;
@@ -867,29 +952,21 @@ async function bukaDaftar(mode,token){
   rProg();tampilSimpan(false);labelMulai();
   try{
     busy(true,'Memuat model wajah...');
-    await muatModel();await muatDB();
-    if(saya){if(!SES.guruId)throw new Error('Akun Anda belum terhubung ke data guru.');}
-    else{DF.guru=await api('getGuruList',DF.tk);isiGuru();}
+    await muatModel();await muatDB(sendiri);
+    if(!sendiri){DF.guru=await api('getGuruList',DF.tk);isiGuru();}
     busy(false);
     await kameraOn($('vidD'));
-    $('dInstr').textContent=saya?'Tekan Absen Sekarang':'Pilih guru, lalu tekan Mulai';
-    if(saya){onTick=jadwalSaya;jadwalSaya();}
+    $('dInstr').textContent=sendiri?'Tekan Mulai':'Pilih guru, lalu tekan Mulai';
   }catch(e){busy(false);$('dInstr').textContent=e.message;}
 }
-function jadwalSaya(){
-  if(DF.mode!=='saya'||DF.busy)return;
-  const S=sesi(),ok=S.k==='pagi'||S.k==='siang';
-  $('dMulai').disabled=!ok;
-  if(!ok)$('dInstr').textContent=S.p;
-  else if(DF.sk!==S.k)$('dInstr').textContent='Tekan Absen Sekarang';
-  DF.sk=ok?S.k:'';
-}
 function keluarDaftar(){
-  DF.stop=true;DF.busy=false;kameraOff($('vidD'));if(DF.mode==='saya')onTick=null;
-  if(DF.mode==='tablet')kembaliTablet();else keHome();
+  DF.stop=true;DF.busy=false;kameraOff($('vidD'));
+  if(DF.mode==='tablet')kembaliTablet();
+  else if(DF.mode==='guru')gsMenu();
+  else keHome();
 }
 $('btnDKembali').onclick=keluarDaftar;
-$('dMulai').onclick=()=>DF.mode==='saya'?absenSaya():mulaiDaftar();
+$('dMulai').onclick=()=>mulaiDaftar();
 $('dUji').onclick=ujiWajah;
 
 /* ---- ambil 1 sampel sesuai langkah ---- */
@@ -907,7 +984,7 @@ async function ambilLangkah(L){
 }
 async function mulaiDaftar(){
   if(DF.busy)return;
-  const id=$('dGuru').value;
+  const id=idDaftar();
   if(!id){toast('Pilih guru dulu');return;}
   const extra=DF.desc.length>=LANGKAH.length;
   if(extra&&DF.desc.length>=MAXS){toast('Maksimal '+MAXS+' sampel');return;}
@@ -936,7 +1013,7 @@ async function mulaiDaftar(){
   tampilSimpan(true);labelMulai();
 }
 async function simpan(){
-  const id=$('dGuru').value;
+  const id=idDaftar();
   if(!id||DF.desc.length<LANGKAH.length)return;
   if(DF.mirip&&!confirm('Wajah mirip dengan '+DF.mirip+'. Tetap simpan?'))return;
   busy(true,'Menyimpan...');
@@ -946,9 +1023,10 @@ async function simpan(){
     if(!r.ok){toast(r.pesan||'Gagal menyimpan');return;}
     bunyi(true);toast('Wajah tersimpan');
     DF.desc=[];DF.mirip='';rProg();tampilSimpan(false);labelMulai();
-    await muatDB();
-    DF.guru=await api('getGuruList',DF.tk);isiGuru(id);
-    $('dInstr').textContent='Tersimpan. Pilih guru berikutnya';$('dInfo').textContent='';
+    await muatDB(DF.mode==='guru');
+    if(DF.mode!=='guru'){DF.guru=await api('getGuruList',DF.tk);isiGuru(id);}
+    $('dInstr').textContent=DF.mode==='guru'?'Tersimpan. Wajah Anda sudah terdaftar':'Tersimpan. Pilih guru berikutnya';
+    $('dInfo').textContent='';
   }catch(e){busy(false);toast(e.message);}
 }
 
@@ -961,58 +1039,351 @@ async function ujiWajah(){
   while(Date.now()-t0<10000&&!DF.stop){d=await ambilDesk($('vidD'));if(d)break;await dsleep(200);}
   let s='Wajah tidak terdeteksi';
   if(d){
-    const m=cocok(d),sel=(m.j2-m.j);
-    s=diterima(m)?'Dikenali: '+m.g.nama+' (jarak '+m.j.toFixed(2)+')'
-      :(m.g&&m.j<=CFG.threshold?'Kurang jelas: mirip '+m.g.nama+' (jarak '+m.j.toFixed(2)+', selisih '+sel.toFixed(2)+')':'Tidak dikenali (jarak '+m.j.toFixed(2)+')');
+    if(DF.mode==='guru'){ // satu lawan satu dengan wajah sendiri
+      const j=jarakSaya(d);
+      s=j>=9?'Wajah Anda belum terdaftar':(j<=AMBANG_SAYA()?'Dikenali (jarak '+j.toFixed(2)+')':'Tidak dikenali (jarak '+j.toFixed(2)+')');
+    }else{
+      const m=cocok(d),sel=(m.j2-m.j);
+      s=diterima(m)?'Dikenali: '+m.g.nama+' (jarak '+m.j.toFixed(2)+')'
+        :(m.g&&m.j<=CFG.threshold?'Kurang jelas: mirip '+m.g.nama+' (jarak '+m.j.toFixed(2)+', selisih '+sel.toFixed(2)+')':'Tidak dikenali (jarak '+m.j.toFixed(2)+')');
+    }
     if(DF.desc.length)s+=' | sampel baru: '+Math.min(...DF.desc.map(x=>faceapi.euclideanDistance(d,x))).toFixed(2);
   }
   $('dInstr').textContent=s;
   DF.busy=false;$('dUji').disabled=false;
 }
+</script>
+<script>
+/* ================= ABSEN GURU (LINK HP) & ABSEN SAYA ================= */
+// satu layar kamera dipakai oleh dua alur: GR.mode='guru' (link guru, login nama + PIN) dan 'saya' (menu Absen Saya akun lain)
+const GR={mode:'guru',run:false,lock:false,timer:0,cam:false,camBusy:false,pos:null,locErr:'',wid:null,info:null,
+  sudah:{pagi:'',siang:''},sk:'',t0:0,phase:'cari',last:Date.now()};
+const GL={pin:'',kode:'',daftar:[],busy:false};
+const AMBANG_SAYA=()=>Math.max(.3,CFG.threshold-.05); // satu lawan satu: sedikit lebih ketat dari tablet
+const IDLE_MS=600000;   // 10 menit tanpa sentuhan: keluar paksa
+const COBA_MS=10000;    // pencocokan otomatis 10 detik, lalu pilih Coba Lagi / Foto Manual
+const rad=x=>x*Math.PI/180;
+function jarakM(a,b,c,d){const R=6371000,dl=rad(c-a),dg=rad(d-b);const h=Math.sin(dl/2)**2+Math.cos(rad(a))*Math.cos(rad(c))*Math.sin(dg/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev,()=>{GR.last=Date.now();},{passive:true}));
+function jarakSaya(d){ // jarak terkecil ke sampel wajah guru yang login (9 = belum terdaftar)
+  const own=DB.find(g=>g.id===SES.guruId);let m=9;
+  if(own)own.desc.forEach(x=>{const j=faceapi.euclideanDistance(d,x);if(j<m)m=j;});
+  return m;
+}
+function kodeLink(){
+  const q=new URLSearchParams(location.search).get('k');
+  try{if(q){localStorage.setItem('linkK',q);return q;}return localStorage.getItem('linkK')||'';}catch(e){return q||'';}
+}
 
-/* ---- Absen Saya (Super Admin, kamera HP) ---- */
-async function absenSaya(){
-  if(DF.busy)return;
-  const S=sesi();
-  if(S.k!=='pagi'&&S.k!=='siang'){$('dInstr').textContent=S.p;return;}
-  DF.busy=true;$('dMulai').disabled=true;
-  $('dInstr').textContent='Kedipkan mata';
-  const v=$('vidD'),t0=Date.now();let open=false,ok=false,mx=0;
-  while(!DF.stop&&Date.now()-t0<20000){
-    const r=await cariWajah(v);
-    gambar($('cvD'),v,r.f?r.f.detection.box:null,'#3b82f6');
-    if(r.f&&Math.abs(yaw(r.f.landmarks))<.28){
-      const e=earRata(r.f.landmarks);
-      if(e>mx)mx=e;
-      if(e>.2)open=true;
-      if(open&&e<.19&&e<mx*.8){ok=true;break;}
-    }
-    await dsleep(100);
+/* ---- login guru: nama (dari daftar) + PIN 6 angka ---- */
+async function initGuru(){
+  muatCfgCache();mulaiJam();
+  GL.kode=kodeLink();
+  show('sGLogin');backFn=null;
+  $('glPad').innerHTML=['1','2','3','4','5','6','7','8','9','⌫','0','OK'].map(k=>'<button data-k="'+k+'">'+k+'</button>').join('');
+  $('glPad').onclick=e=>{const b=e.target.closest('button');if(b)glTekan(b.dataset.k);};
+  glDots();
+  const mandiri=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
+  if(!mandiri)$('glHint').textContent='Pasang ke layar utama: Android, menu ⋮ lalu Instal aplikasi. iPhone, tombol Bagikan lalu Tambah ke Layar Utama.';
+  if(!GL.kode){$('glErr').textContent='Link tidak lengkap. Buka link dari admin sekali lagi.';return;}
+  glMuatNama();
+}
+async function glMuatNama(){
+  try{
+    GL.daftar=await api('getDaftarNamaGuru',GL.kode);
+    acPasang('glNama',GL.daftar);
+    if(!$('glErr').dataset.keep)$('glErr').textContent='';
+  }catch(e){
+    $('glErr').textContent=e.message;
+    if(/Link/.test(e.message)){try{localStorage.removeItem('linkK');}catch(_){}}
+    else setTimeout(glMuatNama,8000); // belum terhubung: coba lagi
   }
-  gambar($('cvD'),v,null);
-  if(!ok){
-    $('dInstr').textContent=DF.stop?'Dibatalkan':'Waktu habis, coba lagi';
-  }else{
-    await dsleep(300);
-    const d=await ambilDesk(v),m=d?cocok(d):null;
-    if(!m||!diterima(m)||m.g.id!==SES.guruId){
-      bunyi(false);$('dInstr').textContent='Wajah tidak cocok dengan akun Anda';
-    }else{
-      try{
-        const r=await api('catatAbsen',devId(),SES.guruId,S.k,SES.token,ambilFoto(v));
-        if(!r.ok){
-          bunyi(false);
-          if(r.sudah)tampilHasil('warn','ℹ️',m.g.nama,'Sudah absen '+(S.k==='pagi'?'pagi':'siang')+' hari ini',U(m.g,'sudah absen hari ini'));
-          else $('dInstr').textContent=r.pesan||'Gagal mencatat absen';
-        }else{
-          bunyi(true);
-          tampilBerhasil(m.g,S.k,r.jam,false);
-          $('dInstr').textContent='Absen tercatat';
-        }
-      }catch(e){$('dInstr').textContent=e.message;}
+}
+function glDots(){$('glDots').innerHTML=Array.from({length:6},(_,i)=>'<i class="'+(i<GL.pin.length?'on':'')+'"></i>').join('');}
+function glTekan(k){
+  $('glErr').textContent='';
+  if(k==='⌫')GL.pin=GL.pin.slice(0,-1);
+  else if(k==='OK'){glMasuk();return;}
+  else if(GL.pin.length<6){GL.pin+=k;if(GL.pin.length===6){glDots();glMasuk();return;}}
+  glDots();
+}
+async function glMasuk(){
+  if(GL.busy)return;
+  const id=acVal('glNama');
+  if(!id){$('glErr').textContent='Pilih nama Anda dari daftar';return;}
+  if(GL.pin.length!==6){$('glErr').textContent='PIN harus 6 angka';return;}
+  GL.busy=true;busy(true,'Masuk...');
+  try{
+    const r=await api('loginGuru',GL.kode,id,GL.pin);
+    busy(false);GL.busy=false;GL.pin='';glDots();
+    if(!r.ok){
+      $('glErr').textContent=r.pesan||'PIN salah';
+      if(r.kodeSalah){try{localStorage.removeItem('linkK');}catch(_){}}
+      return;
     }
+    SES={role:'guru',token:r.token,nama:r.nama||'',sapaan:r.sapaan||'',akses:r.akses||{},guruId:id};
+    GR.mode='guru';GR.last=Date.now();
+    await muatCfg();
+    if(r.pinDefault)gsPin(true);else gBuka();
+  }catch(e){busy(false);GL.busy=false;GL.pin='';glDots();$('glErr').textContent=e.message;}
+}
+$('glKeluarApp').onclick=()=>{gBerhenti();keluarApp();};
+let evInstal=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();evInstal=e;$('glInstal').classList.remove('hide');});
+$('glInstal').onclick=()=>{if(evInstal){evInstal.prompt();evInstal=null;$('glInstal').classList.add('hide');}};
+
+/* ---- buka layar absen (guru atau Absen Saya) ---- */
+function bukaSaya(){
+  if(!SES.guruId){toast('Akun Anda belum terhubung ke data guru.');return;}
+  GR.mode='saya';gBuka();
+}
+async function gBuka(){
+  show('sGuru');backFn=GR.mode==='guru'?null:gKeluarKlik;
+  $('gNama').textContent=SES.nama||'';
+  $('gKeluar').textContent=GR.mode==='guru'?'Keluar':'← Kembali';
+  $('gSet').classList.toggle('hide',GR.mode!=='guru');
+  $('gHasil').classList.remove('show');$('gPilih').classList.add('hide');
+  setPesanG('Memuat...');gKameraOff();
+  onTick=gTick;GR.last=Date.now();
+  try{
+    busy(true,'Memuat model wajah...');
+    await muatModel();
+    GR.info=await api('getInfoAbsen',SES.token);
+    await muatDB(true);
+    busy(false);
+  }catch(e){
+    busy(false);setPesanG(e.message,'bad');
+    if($('sGuru').classList.contains('show'))setTimeout(()=>{if($('sGuru').classList.contains('show')&&!GR.run)gBuka();},10000);
+    return;
   }
-  DF.busy=false;$('dMulai').disabled=false;
+  if(GR.info.nama)$('gNama').textContent=GR.info.nama;
+  gAturSudah();gLokMulai();
+  GR.run=true;GR.lock=false;GR.phase='cari';GR.t0=0;GR.sk='';
+  clearTimeout(GR.timer);gLoop();
+}
+function gAturSudah(){GR.sudah.pagi=(GR.info&&GR.info.pagi)||'';GR.sudah.siang=(GR.info&&GR.info.siang)||'';}
+function gBerhenti(){
+  GR.run=false;clearTimeout(GR.timer);gKameraOff();
+  if(GR.wid!=null){try{navigator.geolocation.clearWatch(GR.wid);}catch(e){}GR.wid=null;}
+  $('gPilih').classList.add('hide');
+}
+function gKeluarKlik(){
+  if(GR.mode==='guru'){gLogout();return;}
+  gBerhenti();onTick=null;keHome();
+}
+$('gKeluar').onclick=gKeluarKlik;
+async function gLogout(pesan){
+  const tk=SES.token;
+  gBerhenti();onTick=null;
+  try{kameraOff($('vidD'));}catch(e){}
+  SES={role:'',token:'',nama:'',akses:{},guruId:''};DB=[];GR.info=null;GR.sudah={pagi:'',siang:''};
+  $('gHasil').classList.remove('show');
+  if(tk)api('keluarSesi',tk).catch(()=>{});
+  GL.pin='';glDots();acPasang('glNama',GL.daftar);
+  $('glErr').textContent=pesan||'';
+  show('sGLogin');backFn=null;
+}
+
+/* ---- lokasi ---- */
+function gLokMulai(){
+  if(GR.wid!=null)return;
+  if(!navigator.geolocation){GR.locErr='Perangkat tidak mendukung lokasi';return;}
+  GR.wid=navigator.geolocation.watchPosition(
+    p=>{GR.pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};GR.locErr='';},
+    e=>{GR.pos=null;GR.locErr=e.code===1?'Izin lokasi ditolak. Izinkan Lokasi untuk situs ini.':'Lokasi belum terbaca';},
+    {enableHighAccuracy:true,maximumAge:10000,timeout:20000});
+}
+function gLokStat(){
+  const L=GR.info&&GR.info.lokasi;
+  if(!GR.info)return{ok:false,t:'Mencari lokasi...',c:'warn'};
+  if(!L||!L.ada)return{ok:false,t:'Lokasi sekolah belum diatur',c:'bad'};
+  if(GR.locErr)return{ok:false,t:GR.locErr,c:'bad'};
+  if(!GR.pos)return{ok:false,t:'Mencari lokasi...',c:'warn'};
+  const j=jarakM(GR.pos.lat,GR.pos.lng,L.lat,L.lng),tol=Math.min(GR.pos.acc||0,30),ok=j-tol<=L.radius;
+  return{ok,j,t:ok?'Di area sekolah ('+Math.round(j)+' m)':'Di luar area sekolah ('+Math.round(j)+' m dari sekolah)',c:ok?'ok':'bad'};
+}
+
+/* ---- pesan & jam ---- */
+function setPesanG(t,c){const e=$('gPesan');if(e.textContent!==t)e.textContent=t;e.className='pesan '+(c||'');}
+function gPesan(S){ // null = pesan diisi oleh loop kamera
+  if(!GR.info)return 'Memuat...';
+  const J=jadwalHari(wib());
+  if(S.k==='pagi'||S.k==='siang'){
+    if(GR.sudah[S.k]){
+      if(S.k==='pagi')return 'Anda sudah absen pagi ('+GR.sudah.pagi+'). Absen siang dibuka dalam '+hitung(J.siangBuka);
+      return 'Anda sudah absen siang ('+GR.sudah.siang+'). Terima kasih.';
+    }
+    const L=gLokStat();return L.ok?null:L.t;
+  }
+  if(S.k==='jeda')return (GR.sudah.pagi?'Anda sudah absen pagi ('+GR.sudah.pagi+'). ':'Anda belum absen pagi. ')+S.p;
+  if(S.k==='tutup')return 'Absen tutup'+(GR.sudah.siang?'. Anda sudah absen siang ('+GR.sudah.siang+')':'');
+  return S.p;
+}
+function gTick(t){
+  $('gJam').textContent=jamStr(t,1);
+  $('gTgl').textContent=HARI[t.w]+', '+t.d+' '+BULAN[t.m-1]+' '+t.y;
+  if(GR.mode==='guru'&&SES.token&&Date.now()-GR.last>IDLE_MS){gLogout('Sesi berakhir karena tidak ada aktivitas. Masuk lagi.');return;}
+  if(!$('sGuru').classList.contains('show'))return;
+  const L=gLokStat(),el=$('gLok');
+  if(el.textContent!==L.t)el.textContent=L.t;
+  el.className='gl '+L.c;
+  if($('gHasil').classList.contains('show'))return;
+  const m=gPesan(sesi());
+  if(m!==null)setPesanG(m);
+}
+
+/* ---- kamera ---- */
+async function gKameraOn(){
+  if(GR.camBusy)return;
+  GR.camBusy=true;
+  try{kameraOff($('vidG'));await kameraOn($('vidG'));GR.cam=true;$('gStage').classList.remove('off');}
+  catch(e){GR.cam=false;setPesanG(e.message,'bad');}
+  GR.camBusy=false;
+}
+function gKameraOff(){
+  try{kameraOff($('vidG'));}catch(e){}
+  GR.cam=false;$('gStage').classList.add('off');
+  try{const c=$('cvG');c.getContext('2d').clearRect(0,0,c.width,c.height);}catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{ // kamera bisa mati saat aplikasi di latar belakang
+  if(document.hidden||!GR.run||!GR.cam)return;
+  const s=$('vidG').srcObject;
+  if(!s||!s.active)GR.cam=false;
+});
+
+/* ---- loop pencocokan otomatis (10 detik), lalu pilihan Coba Lagi / Foto Manual ---- */
+async function gLoop(){
+  if(!GR.run)return;
+  let d=500;
+  try{d=await gLangkah();}catch(e){d=800;}
+  GR.timer=setTimeout(gLoop,d);
+}
+function gPilih(adaAuto,pesan){
+  $('gPilihT').textContent=pesan||'Wajah belum terbaca';
+  $('gUlang').classList.toggle('hide',!adaAuto);
+  $('gPilih').classList.remove('hide');
+  setPesanG('');
+}
+$('gUlang').onclick=()=>{GR.phase='cari';GR.t0=0;$('gPilih').classList.add('hide');};
+$('gFotoM').onclick=()=>gManual();
+async function gLangkah(){
+  if($('gHasil').classList.contains('show'))return 500;
+  const S=sesi(),vid=$('vidG'),cv=$('cvG');
+  const sk=(S.k==='pagi'||S.k==='siang')?S.k:'';
+  if(sk!==GR.sk){ // sesi berganti: mulai ulang & segarkan status dari server
+    GR.sk=sk;GR.t0=0;GR.phase='cari';$('gPilih').classList.add('hide');
+    if(sk){try{GR.info=await api('getInfoAbsen',SES.token);gAturSudah();}catch(e){}}
+  }
+  if(!sk||GR.sudah[sk]){if(GR.cam)gKameraOff();return 1000;}
+  const L=gLokStat();
+  if(!L.ok){setPesanG(L.t,'bad');if(GR.cam)gKameraOff();return 1000;}
+  if(!GR.cam){await gKameraOn();if(!GR.cam)return 5000;}
+  if(GR.lock||GR.phase==='pilih')return 300;
+  const own=DB.find(g=>g.id===SES.guruId);
+  if(!own||!own.desc.length){GR.phase='pilih';gPilih(false,'Wajah Anda belum terdaftar. Daftarkan di Pengaturan, atau pakai Absen Manual.');return 500;}
+  if(!GR.t0)GR.t0=Date.now();
+  if(Date.now()-GR.t0>COBA_MS){GR.phase='pilih';gambar(cv,vid,null);gPilih(true,'Wajah belum cocok atau kurang jelas');return 300;}
+  const gelap=terang(vid)<45;
+  const r=await cariWajah(vid);
+  if(!r.f){gambar(cv,vid,null);setPesanG(gelap?'Terlalu gelap, cari tempat lebih terang':'Arahkan wajah ke kamera',gelap?'warn':'');return 150;}
+  const b=r.f.detection.box;
+  gambar(cv,vid,b,'#3b82f6');
+  if(gelap){setPesanG('Terlalu gelap, cari tempat lebih terang','warn');return 300;}
+  if(b.width<vid.videoWidth*0.17){setPesanG('Dekatkan wajah ke kamera');return 60;}
+  if(Math.abs(yaw(r.f.landmarks))>0.28){setPesanG('Hadap lurus ke kamera');return 60;}
+  setPesanG('Memeriksa wajah...');
+  const d=await ambilDesk(vid);
+  if(!d)return 100;
+  if(jarakSaya(d)<=AMBANG_SAYA()){await gKirim(false,sk,ambilFoto(vid));return 300;}
+  setPesanG('Wajah belum cocok, hadap lurus ke kamera');
+  return 150;
+}
+
+/* ---- foto manual & kirim ---- */
+async function gManual(){
+  if(GR.lock)return;
+  const S=sesi(),sk=(S.k==='pagi'||S.k==='siang')?S.k:'';
+  if(!sk){toast(S.p||'Absen belum dibuka');return;}
+  if(!GR.info){toast('Tunggu sebentar, data belum dimuat');return;}
+  if(GR.sudah[sk]){toast('Anda sudah absen');return;}
+  const L=gLokStat();if(!L.ok){toast(L.t,4000);return;}
+  if(!GR.cam||!$('vidG').videoWidth){toast('Kamera belum siap');return;}
+  await gKirim(true,sk,ambilFoto($('vidG'),240));
+}
+$('gManual').onclick=()=>gManual();
+async function gKirim(manual,sk,foto){
+  GR.lock=true;$('gPilih').classList.add('hide');
+  setPesanG('Mencatat absen...');
+  const p=GR.pos||{};
+  try{
+    const r=await api('catatAbsen',devId(),SES.guruId,sk,SES.token,foto,{manual:!!manual,lat:p.lat,lng:p.lng,acc:p.acc});
+    if(r.ok||r.sudah){
+      GR.sudah[sk]=r.jam||'-';
+      const g={nama:GR.info.nama||SES.nama,sapaan:GR.info.sapaan||''};
+      bunyi(!!r.ok);
+      if(r.ok)gHasil('ok','✅','Terima kasih, '+g.nama,r.jam+' WIB'+(manual?' • Foto manual':''),kalimat(g,sk));
+      else gHasil('warn','ℹ️',g.nama,'Sudah absen '+(sk==='pagi'?'pagi':'siang')+' hari ini','');
+      return;
+    }
+    bunyi(false);GR.lock=false;GR.phase='pilih';
+    gPilih(true,r.pesan||'Absen tidak tercatat');toast(r.pesan||'Absen tidak tercatat',5000);
+  }catch(e){
+    GR.lock=false;GR.phase='pilih';bunyi(false);
+    gPilih(true,e.message);toast(e.message,5000);
+  }
+}
+function gHasil(cls,ikon,nama,info,teks){
+  const h=$('gHasil');h.className='show '+cls;
+  $('ghIkon').textContent=ikon;$('ghNama').textContent=nama;$('ghInfo').textContent=info||'';$('ghUcap').textContent=teks||'';
+  setPesanG('');
+}
+$('gHasil').onclick=()=>{$('gHasil').className='';GR.lock=false;GR.phase='cari';GR.t0=0;};
+
+/* ---- pengaturan guru: Daftar Wajah, Ubah PIN, Rekap Saya ---- */
+$('gSet').onclick=()=>gsMenu();
+$('gsKembali').onclick=()=>{if(backFn)backFn();};
+function gsMenu(){
+  gBerhenti();
+  $('gsJudul').textContent='Pengaturan';$('gsKembali').classList.remove('hide');
+  $('gsBody').innerHTML='<div class="grid"><button class="card" data-g="wajah"><span class="ic">🙂</span>Daftar Wajah</button>'+
+    '<button class="card" data-g="pin"><span class="ic">🔢</span>Ubah PIN</button>'+
+    '<button class="card" data-g="rekap"><span class="ic">📈</span>Rekap Saya</button></div>';
+  $('gsBody').onclick=e=>{const b=e.target.closest('[data-g]');if(!b)return;
+    if(b.dataset.g==='wajah')bukaDaftar('guru');else if(b.dataset.g==='pin')gsPin(false);else gsRekap();};
+  show('sGSet');backFn=gBuka;
+}
+function gsPin(wajib){
+  $('gsJudul').textContent=wajib?'Ganti PIN Bawaan':'Ubah PIN';
+  $('gsKembali').classList.toggle('hide',!!wajib);
+  $('gsBody').onclick=null;
+  $('gsBody').innerHTML='<div class="box">'+(wajib?'<div class="alert">PIN Anda masih bawaan (000000). Buat PIN baru 6 angka sebelum melanjutkan.</div>':'<label>PIN lama</label><input id="pL" type="password" inputmode="numeric" maxlength="6" autocomplete="off">')+
+    '<label>PIN baru (6 angka)</label><input id="pB" type="password" inputmode="numeric" maxlength="6" autocomplete="off">'+
+    '<label>Ulangi PIN baru</label><input id="pU" type="password" inputmode="numeric" maxlength="6" autocomplete="off">'+
+    '<button class="btn ok" id="pOkG" style="width:100%;margin-top:14px">Simpan PIN</button></div>';
+  $('pOkG').onclick=aman(async()=>{
+    const lama=wajib?'000000':$('pL').value,b=$('pB').value,u=$('pU').value;
+    if(!/^\d{6}$/.test(b))return toast('PIN baru harus 6 angka');
+    if(b==='000000')return toast('PIN baru tidak boleh 000000');
+    if(b!==u)return toast('Ulangi PIN tidak sama');
+    busy(true);const r=await api('ubahPinGuru',SES.token,lama,b);busy(false);
+    toast(r.pesan||'Selesai');
+    if(r.ok){if(wajib)gBuka();else gsMenu();}
+  });
+  show('sGSet');backFn=wajib?null:gsMenu;
+}
+async function gsRekap(){
+  $('gsJudul').textContent='Rekap Saya';$('gsKembali').classList.remove('hide');
+  const t=wib(),bln=t.y+'-'+pad(t.m);
+  $('gsBody').onclick=null;
+  $('gsBody').innerHTML='<div class="box"><label style="margin-top:0">Bulan</label><input id="rkB" type="month" value="'+bln+'"></div><div id="rkH"></div>';
+  const muat=aman(async()=>{
+    busy(true);const R=await api('getRekapSaya',SES.token,$('rkB').value);busy(false);
+    $('rkH').innerHTML='<div class="box"><h3>Ringkasan</h3>'+tabel(['Keterangan','Jumlah'],R.head.slice(1).map((h,i)=>[esc(h),esc(R.row[i+1]==null?'0':R.row[i+1])]),1)+'</div>'+
+      '<div class="box"><h3>Per Hari</h3>'+tabel(['Tanggal','Pagi','Status','Siang','Ket'],R.hari.map(r=>[esc(r[0]),esc(r[1]||'-'),tag(r[2],stCls(r[2])),esc(r[3]||'-'),esc(String(r[4]||'').replace(/ \| /g,'; '))]),1)+'</div>';
+  });
+  $('rkB').onchange=muat;
+  show('sGSet');backFn=gsMenu;
+  muat();
 }
 </script>
 <script>
@@ -1075,7 +1446,7 @@ const csv=(head,rows)=>[head].concat(rows).map(r=>r.map(c=>'"'+String(c==null?''
 
 /* ================= ROUTER MENU ================= */
 function renderMenu(k,el,lv){
-  const F={dash:mDash,guru:mGuru,absen:mAbsen,status:mStatus,rekap:mRekap,libur:mLibur,set:mSet,hak:mHak,pin:mPin,tablet:mTablet,jadwal:mJadwal,log:mLog,backup:mBackup}[k];
+  const F={dash:mDash,guru:mGuru,absen:mAbsen,status:mStatus,rekap:mRekap,libur:mLibur,set:mSet,hak:mHak,pin:mPin,tablet:mTablet,jadwal:mJadwal,log:mLog,backup:mBackup,piket:mPiket,lokasi:mLokasi,link:mLink,reset:mReset,hariini:mHariIni}[k];
   if(!F)throw new Error('Menu tidak tersedia');
   aman(F)(el,lv>=2);
 }
@@ -1097,8 +1468,8 @@ async function mDash(el){
   };
   const sub=(g,s)=>{ // tag jenis (Tugas Sekolah, Izin Terlambat, Pulang Cepat) + alasan
     let h='';
-    if(s==='pagi'){if(g.tsP)h+=tag('Tugas Sekolah','warn')+' ';if(g.it)h+=tag('Izin Terlambat','warn')+' ';if(g.kp)h+='<span class="muted">'+esc(g.kp)+'</span>';}
-    else{if(g.tsS)h+=tag('Tugas Sekolah','warn')+' ';if(g.pc)h+=tag('Pulang Cepat','warn')+' ';if(g.ks)h+='<span class="muted">'+esc(g.ks)+'</span>';}
+    if(s==='pagi'){if(g.tsP)h+=tag('Tugas Sekolah','warn')+' ';if(g.it)h+=tag('Izin Terlambat','warn')+' ';if(g.mp)h+=tag('Foto Manual','warn')+' ';if(g.kp)h+='<span class="muted">'+esc(g.kp)+'</span>';}
+    else{if(g.tsS)h+=tag('Tugas Sekolah','warn')+' ';if(g.pc)h+=tag('Pulang Cepat','warn')+' ';if(g.ms)h+=tag('Foto Manual','warn')+' ';if(g.ks)h+='<span class="muted">'+esc(g.ks)+'</span>';}
     return h;
   };
   // foto kecil langsung tampil (tidak untuk Wakil); ditekan = diperbesar di tengah layar
@@ -1120,6 +1491,7 @@ async function mDash(el){
     if(g.it)a.push(tag('Izin Terlambat','warn'));
     if(g.tsP||g.tsS)a.push(tag('Tugas Sekolah','warn'));
     if(g.pc)a.push(tag('Pulang Cepat','warn'));
+    if(g.mp||g.ms)a.push(tag('Foto Manual','warn'));
     const al=[g.kp,g.ks].filter(Boolean).map(esc).join('; ');
     if(!a.length&&!al)return '<span class="muted">-</span>';
     return a.join(' ')+(al?'<div class="muted sub">'+al+'</div>':'');
@@ -1175,7 +1547,7 @@ async function mGuru(el,ubah){
   const [MP,L]=await Promise.all([ubah?api('getMapel',SES.token):[],api('getGuruAdmin',SES.token)]);
   const bisaWajah=(SES.akses.wajah|0)>=2;
   const DR={}; // perubahan tab Daftar yang belum disimpan: id -> {mapel:[], sapaan, libur}
-  const HARI_LB=['Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  let PN=null;const REV={};
   const mpArr=s=>String(s||'').split(/\s*;\s*/).filter(Boolean);
   const cur=g=>DR[g.id]||{mapel:mpArr(g.mapel),sapaan:g.sapaan||'',libur:g.libur||''};
   const namaTag=g=>esc(g.nama)+(g.aktif?'':' '+tag('Nonaktif','bad'));
@@ -1190,20 +1562,16 @@ async function mGuru(el,ubah){
         '<select class="ci sp" data-sp="'+esc(g.id)+'"><option value="">-</option>'+['Bapak','Ibu'].map(v=>'<option'+(c.sapaan===v?' selected':'')+'>'+v+'</option>').join('')+'</select>'];
     });
     const n=Object.keys(DR).length;
-    return '<div class="box"><h3>Daftar Guru ('+L.length+')</h3><p class="muted" style="margin-bottom:8px">Mapel dan sapaan guru. Hari libur diatur di tab Libur.</p>'+(ubah?'<button class="btn ok" id="gSimD" style="width:100%;margin-bottom:10px"'+(n?'':' disabled')+'>Simpan Perubahan'+(n?' ('+n+')':'')+'</button>':'')+tabel(['No','Nama','Mapel','Sapaan'],rows,1)+'</div>';
+    return '<div class="box"><h3>Daftar Guru ('+L.length+')</h3><p class="muted" style="margin-bottom:8px">Mapel dan sapaan guru. Piket dan libur diatur di kartu Piket&amp;Libur.</p>'+(ubah?'<button class="btn ok" id="gSimD" style="width:100%;margin-bottom:10px"'+(n?'':' disabled')+'>Simpan Perubahan'+(n?' ('+n+')':'')+'</button>':'')+tabel(['No','Nama','Mapel','Sapaan'],rows,1)+'</div>';
   };
   // semua perubahan (mapel, sapaan, libur) ada di DR dan disimpan bersama
-  const itemDR=()=>Object.keys(DR).map(id=>({id,mapel:DR[id].mapel.join('; '),sapaan:DR[id].sapaan,libur:DR[id].libur}));
-  const tabLibur=()=>{
-    const rows=L.map((g,i)=>{
-      const c=cur(g);
-      if(!ubah)return [i+1,esc(g.nama),esc(c.libur||'-')];
-      return [i+1,namaTag(g),'<select class="ci lb" data-lb="'+esc(g.id)+'"><option value="">-</option>'+HARI_LB.map(v=>'<option'+(c.libur===v?' selected':'')+'>'+v+'</option>').join('')+'</select>'];
-    });
-    const n=Object.keys(DR).length;
-    return '<div class="box"><h3>Hari Libur Guru</h3><p class="muted" style="margin-bottom:8px">Libur: hari libur mingguan guru (Selasa-Sabtu). Saat absen dibuka, guru yang libur hari itu otomatis tercatat Hadir (Libur). Bila tetap datang, datanya diperbarui oleh absen biasa.</p>'+
-      (ubah?'<button class="btn ok" id="gSimL" style="width:100%;margin-bottom:10px"'+(n?'':' disabled')+'>Simpan Perubahan'+(n?' ('+n+')':'')+'</button>':'')+
-      tabel(['No','Nama','Libur'],rows,1)+'</div>';
+  const itemDR=()=>Object.keys(DR).map(id=>({id,mapel:DR[id].mapel.join('; '),sapaan:DR[id].sapaan}));
+  const tabPin=()=>{
+    if(!PN)return '<div class="box"><p class="muted">Memuat...</p></div>';
+    const rows=PN.map((g,i)=>[i+1,esc(g.nama)+(g.aktif?'':' '+tag('Nonaktif','bad')),
+      '<button class="btn sm gray" data-rv="'+esc(g.id)+'" style="min-width:84px;letter-spacing:2px">'+(REV[g.id]?esc(g.pin):'••••••')+'</button>'+(g.pin==='000000'?' '+tag('Bawaan','warn'):''),
+      ubah?'<button class="btn sm bad" data-rs="'+esc(g.id)+'">Reset</button>':'']);
+    return '<div class="box"><h3>PIN Guru ('+PN.length+')</h3><p class="muted" style="margin-bottom:8px">PIN disembunyikan, ketuk untuk melihat. Reset mengembalikan ke 000000 dan membuka kunci.</p>'+tabel(['No','Nama','PIN',''],rows,1)+'</div>';
   };
   const tabEdit=()=>{
     const form=ubah?'<div class="box"><h3>Tambah Guru</h3><label>Nama</label><input id="gNama"><label>NIP / NUPTK (honorer)</label><input id="gNip">'+
@@ -1226,18 +1594,14 @@ async function mGuru(el,ubah){
     toast(r.pesan||'Selesai');if(r.ok)mGuru(el,ubah);
   };
   const gambar=()=>{
-    el.innerHTML='<div class="tabs"><button data-gt="daftar" class="'+(gTab==='daftar'?'on':'')+'">Daftar</button><button data-gt="edit" class="'+(gTab==='edit'?'on':'')+'">Edit</button><button data-gt="libur" class="'+(gTab==='libur'?'on':'')+'">Libur</button></div>'+(gTab==='daftar'?tabDaftar():gTab==='libur'?tabLibur():tabEdit());
+    el.innerHTML='<div class="tabs"><button data-gt="daftar" class="'+(gTab==='daftar'?'on':'')+'">Daftar</button><button data-gt="edit" class="'+(gTab==='edit'?'on':'')+'">Edit</button><button data-gt="pin" class="'+(gTab==='pin'?'on':'')+'">PIN</button></div>'+(gTab==='daftar'?tabDaftar():gTab==='pin'?tabPin():tabEdit());
     if(!ubah)return;
     if(gTab==='daftar'){
       el.oninput=null;
       $('gSimD').onclick=aman(()=>simpan(itemDR()));
       return;
     }
-    if(gTab==='libur'){
-      el.oninput=null;
-      if($('gSimL'))$('gSimL').onclick=aman(()=>simpan(itemDR()));
-      return;
-    }
+    if(gTab==='pin'){el.oninput=null;return;}
     mpPasang('gMapel',MP);
     $('gBatal').onclick=()=>{$('gNama').value='';$('gNip').value='';$('gSap').value='';mpSet('gMapel','');};
     $('gTambah').onclick=aman(async()=>{
@@ -1265,8 +1629,11 @@ async function mGuru(el,ubah){
     });
   };
   el.onclick=aman(async e=>{
-    const b=e.target.closest('[data-gt],[data-xm],[data-a],[data-w]');if(!b)return;
-    if(b.dataset.gt){gTab=b.dataset.gt;gambar();}
+    const b=e.target.closest('[data-gt],[data-xm],[data-a],[data-w],[data-rv],[data-rs]');if(!b)return;
+    if(b.dataset.gt){gTab=b.dataset.gt;if(gTab==='pin'&&!PN){busy(true);PN=await api('getPinGuru',SES.token);busy(false);}gambar();}
+    else if(b.dataset.rv){const i=b.dataset.rv;if(REV[i])delete REV[i];else REV[i]=1;gambar();}
+    else if(b.dataset.rs){const g=L.find(x=>x.id===b.dataset.rs);if(!confirm('Reset PIN '+g.nama+' menjadi 000000?'))return;
+      busy(true);const r=await api('resetPinGuru',SES.token,g.id);PN=await api('getPinGuru',SES.token);busy(false);delete REV[g.id];toast(r.pesan||'Selesai');gambar();}
     else if(b.dataset.xm){
       const p=b.dataset.xm.split('|'),g=L.find(x=>x.id===p[0]),c=cur(g),m=c.mapel.slice();
       m.splice(+p[1],1);DR[g.id]=Object.assign({},c,{mapel:m});gambar();
@@ -1386,12 +1753,12 @@ async function mSet(el,ubah){
    '<label>Lama simpan foto absen (hari, 1-30)</label><input id="cF" type="number" min="1" max="30" value="'+esc(c.fotoHari||7)+'">'+
    '<label>Threshold wajah (0.3-0.7, makin kecil makin ketat)</label><input id="cTh" type="number" step="0.01" min="0.3" max="0.7" value="'+esc(c.threshold)+'">'+
    (sup?'<label>ID Guru Super Admin (untuk menu Absen Saya akun Super, contoh G001)</label><input id="cA" value="'+esc(c.adminGuruId||'')+'">':'')+
-   ((sup||SES.role==='admin')?'<label>ID Guru Admin (untuk menu Absen Saya akun Admin, contoh G002)</label><input id="cGA" value="'+esc(c.guruAdmin||'')+'"><label>ID Guru Kepsek (untuk menu Absen Saya akun Kepsek, contoh G003)</label><input id="cGK" value="'+esc(c.guruKepsek||'')+'">':'')+'</div>'+
+   ((sup||SES.role==='admin')?'<label>ID Guru Admin (untuk menu Absen Saya akun Admin, contoh G002)</label><input id="cGA" value="'+esc(c.guruAdmin||'')+'"><label>ID Guru Kepsek (untuk menu Absen Saya akun Kepsek, contoh G003)</label><input id="cGK" value="'+esc(c.guruKepsek||'')+'"><label>ID Guru Wakil (untuk menu Absen Saya akun Wakil, contoh G004)</label><input id="cGW" value="'+esc(c.guruWakil||'')+'">':'')+'</div>'+
    '<div class="box"><h3>Notifikasi Email</h3><p class="muted">Dikirim sekali sesudah jam tutup siang bila guru yang belum absen mencapai batas.</p>'+
    '<label>Email Kepsek</label><input id="cEk" type="email" value="'+esc(c.emailKepsek||'')+'"><label>Email Wakil Kepala Sekolah</label><input id="cEw" type="email" value="'+esc(c.emailWakil||'')+'">'+
    '<label>Kirim jika guru belum absen minimal</label><input id="cNm" type="number" min="1" max="99" value="'+esc(c.notifMin||3)+'"></div>'+
-   '<div class="box"><h3>Kalimat Ucapan Tablet</h3><p class="muted">Satu kalimat per baris. Pakai {sapaan} dan {nama}. Tiap absen dipilih satu secara acak.</p>'+
-   '<label>Pagi</label><textarea id="uP" rows="4">'+esc(S.ucapan.pagi.join('\n'))+'</textarea><label>Siang</label><textarea id="uS" rows="4">'+esc(S.ucapan.siang.join('\n'))+'</textarea></div>'+
+   '<div class="box"><h3>Kalimat Ucapan (tablet &amp; HP guru)</h3><p class="muted">Satu kalimat per baris. Pakai {sapaan} dan {nama}. Tiap absen dipilih satu secara acak.</p>'+
+   '<label>Pagi</label><textarea id="uP" rows="8">'+esc(S.ucapan.pagi.join('\n'))+'</textarea><label>Siang</label><textarea id="uS" rows="8">'+esc(S.ucapan.siang.join('\n'))+'</textarea></div>'+
    '<button class="btn ok" id="cOk" style="width:100%;margin-bottom:14px">Simpan Pengaturan</button>';
   if(!ubah){el.querySelectorAll('input,select,textarea,button').forEach(x=>x.disabled=true);return;}
   pasangSimpanUbah(el,'cOk');
@@ -1400,6 +1767,7 @@ async function mSet(el,ubah){
     if(sup)cfg.adminGuruId=$('cA').value.trim();
     if($('cGA'))cfg.guruAdmin=$('cGA').value.trim();
     if($('cGK'))cfg.guruKepsek=$('cGK').value.trim();
+    if($('cGW'))cfg.guruWakil=$('cGW').value.trim();
     const baris=id=>$(id).value.split('\n').map(s=>s.trim()).filter(Boolean);
     busy(true);const r=await api('simpanSettings',SES.token,{cfg,ucapan:{pagi:baris('uP'),siang:baris('uS')}});
     busy(false);toast(r.ok?'Tersimpan':r.pesan);if(r.ok){await muatCfg();mSet(el,ubah);}
@@ -1416,29 +1784,177 @@ async function mSet(el,ubah){
   });
 }
 
-/* ---------- Jadwal Absen Harian ---------- */
+/* ---------- Piket & Libur (kartu dengan tab Piket dan Libur) ---------- */
+let pTab='piket';
+async function mPiket(el,ubah){
+  const L=await api('getPiketLibur',SES.token);
+  const DR={}; // id -> {piket?, libur?} perubahan belum disimpan
+  const HP=['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'],HL=['Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const cur=(g,f)=>(DR[g.id]&&DR[g.id][f]!==undefined)?DR[g.id][f]:g[f];
+  const tulis=()=>{
+    const f=pTab,H=f==='piket'?HP:HL,n=Object.keys(DR).length;
+    const rows=L.map((g,i)=>{
+      const nm=esc(g.nama)+(g.aktif?'':' '+tag('Nonaktif','bad'));
+      if(!ubah)return [i+1,nm,esc(g[f]||'-')];
+      const v=cur(g,f);
+      return [i+1,nm,'<select class="ci lb" data-f="'+f+'" data-id="'+esc(g.id)+'"><option value="">-</option>'+H.map(h=>'<option'+(v===h?' selected':'')+'>'+h+'</option>').join('')+'</select>'];
+    });
+    const ket=f==='piket'
+      ?'Piket: hari guru wajib datang lebih awal. Batas terlambat piket diatur di kartu Jadwal Absen. Piket Senin-Sabtu.'
+      :'Libur: hari libur mingguan guru (Selasa-Sabtu). Saat absen dibuka, guru yang libur hari itu otomatis tercatat Hadir (Libur). Hari libur tidak boleh sama dengan hari piket.';
+    el.innerHTML='<div class="tabs"><button data-pt="piket" class="'+(f==='piket'?'on':'')+'">Piket</button><button data-pt="libur" class="'+(f==='libur'?'on':'')+'">Libur</button></div>'+
+      '<div class="box"><h3>'+(f==='piket'?'Hari Piket Guru':'Hari Libur Guru')+'</h3><p class="muted" style="margin-bottom:8px">'+ket+'</p>'+
+      (ubah?'<button class="btn ok" id="pkSim" style="width:100%;margin-bottom:10px"'+(n?'':' disabled')+'>Simpan Perubahan'+(n?' ('+n+')':'')+'</button>':'')+
+      tabel(['No','Nama',f==='piket'?'Piket':'Libur'],rows,1)+'</div>';
+    if(ubah&&$('pkSim'))$('pkSim').onclick=aman(async()=>{
+      const it=Object.keys(DR).map(id=>Object.assign({id},DR[id]));
+      for(const x of it){const g=L.find(q=>q.id===x.id),p=x.piket!==undefined?x.piket:g.piket,l=x.libur!==undefined?x.libur:g.libur;
+        if(p&&l&&p===l)return toast(g.nama+': hari libur dan piket tidak boleh sama ('+p+')',4500);}
+      busy(true);const r=await api('simpanPiketLibur',SES.token,it);busy(false);
+      toast(r.pesan||'Selesai',4000);if(r.ok)mPiket(el,ubah);
+    });
+  };
+  el.onclick=e=>{const b=e.target.closest('[data-pt]');if(b){pTab=b.dataset.pt;tulis();}};
+  el.onchange=e=>{const t=e.target;if(!t.dataset||!t.dataset.id)return;
+    const g=L.find(q=>q.id===t.dataset.id),f=t.dataset.f,o=DR[g.id]=DR[g.id]||{};
+    if(t.value===g[f])delete o[f];else o[f]=t.value;
+    if(!Object.keys(o).length)delete DR[g.id];
+    tulis();};
+  tulis();
+}
+
+/* ---------- Lokasi Sekolah ---------- */
+async function mLokasi(el,ubah){
+  const L=await api('getLokasi',SES.token);
+  el.innerHTML='<div class="box"><h3>Lokasi Sekolah</h3><p class="muted" style="margin-bottom:8px">Guru hanya bisa absen dari HP bila berada dalam radius ini (dicek ulang oleh server). Toleransi akurasi GPS sampai 30 m.</p>'+
+   (L.ada?'':'<div class="alert">Lokasi sekolah belum diatur. Absen dari HP guru belum bisa dipakai.</div>')+
+   '<div class="row"><div><label>Latitude</label><input id="lkLat" inputmode="decimal" value="'+esc(L.lat)+'" placeholder="contoh: 1.3712345"></div>'+
+   '<div><label>Longitude</label><input id="lkLng" inputmode="decimal" value="'+esc(L.lng)+'" placeholder="contoh: 99.2712345"></div></div>'+
+   '<label>Radius (meter, 20-2000)</label><input id="lkRad" type="number" min="20" max="2000" value="'+esc(L.radius||100)+'">'+
+   (ubah?'<div class="row" style="margin-top:12px"><button class="btn gray" id="lkGps">Pakai lokasi saya sekarang</button><button class="btn ok" id="lkOk">Simpan</button></div><p class="muted" id="lkInfo" style="margin-top:8px"></p>':'')+'</div>';
+  if(!ubah){el.querySelectorAll('input').forEach(x=>x.disabled=true);return;}
+  pasangSimpanUbah(el,'lkOk');
+  $('lkGps').onclick=()=>{
+    if(!navigator.geolocation)return toast('Perangkat tidak mendukung lokasi');
+    $('lkInfo').textContent='Mencari lokasi...';
+    navigator.geolocation.getCurrentPosition(p=>{
+      $('lkLat').value=p.coords.latitude.toFixed(7);$('lkLng').value=p.coords.longitude.toFixed(7);
+      $('lkInfo').textContent='Akurasi sekitar '+Math.round(p.coords.accuracy)+' m. Sebaiknya lakukan di tengah halaman sekolah, lalu tekan Simpan.';
+      el.oninput();
+    },e=>{$('lkInfo').textContent=e.code===1?'Izin lokasi ditolak':'Lokasi belum terbaca';},{enableHighAccuracy:true,timeout:25000,maximumAge:0});
+  };
+  $('lkOk').onclick=aman(async()=>{
+    busy(true);const r=await api('simpanLokasi',SES.token,{lat:$('lkLat').value.trim().replace(',','.'),lng:$('lkLng').value.trim().replace(',','.'),radius:$('lkRad').value});
+    busy(false);toast(r.pesan||'Selesai',4000);if(r.ok)mLokasi(el,ubah);
+  });
+}
+
+/* ---------- Link Guru ---------- */
+async function mLink(el,ubah){
+  const R=await api('getLinkGuru',SES.token);
+  const url=location.href.split('#')[0].split('?')[0]+'?p=guru&k='+encodeURIComponent(R.kode);
+  el.innerHTML='<div class="box"><h3>Link Absen Guru</h3><p class="muted" style="margin-bottom:8px">Satu link untuk semua guru. Bagikan lewat grup, lalu guru memilih Pasang ke layar utama. Jangan disebarkan ke luar sekolah.</p>'+
+   '<div class="lnk"><input id="lnU" readonly value="'+esc(url)+'"><button class="btn" id="lnC">Salin</button></div>'+
+   (ubah?'<button class="btn bad" id="lnB" style="width:100%;margin-top:14px">Buat Ulang Link</button><p class="muted" style="margin-top:8px">Link lama langsung tidak berlaku. Guru perlu memakai link baru.</p>':'')+'</div>';
+  $('lnC').onclick=async()=>{
+    try{await navigator.clipboard.writeText(url);toast('Link disalin');}
+    catch(e){const i=$('lnU');i.select();i.setSelectionRange(0,9999);let ok=false;try{ok=document.execCommand('copy');}catch(_){}toast(ok?'Link disalin':'Tekan lama pada kotak lalu pilih Salin');}
+  };
+  if(ubah)$('lnB').onclick=aman(async()=>{
+    if(!confirm('Buat ulang link? Link lama tidak akan berlaku lagi.'))return;
+    busy(true);const r=await api('buatUlangLink',SES.token);busy(false);toast(r.pesan||'Selesai',4000);mLink(el,ubah);
+  });
+}
+
+/* ---------- Jadwal Hari Ini (hanya tanggal hari ini) ---------- */
+const KJ=[['pagiBuka','Pagi buka'],['pagiTutup','Pagi tutup'],['telat','Batas terlambat'],['siangBuka','Siang buka'],['siangTutup','Siang tutup']];
+async function mHariIni(el,ubah){
+  const D=await api('getJadwalHariIni',SES.token);
+  const j=D.jam||{};
+  el.innerHTML=(D.libur?'<div class="alert">'+esc(D.libur)+'</div>':'')+
+   '<div class="box"><h3>Jadwal '+esc(D.hari)+', '+esc(D.tgl)+'</h3><p class="muted" style="margin-bottom:8px">Hanya berlaku untuk hari ini. Besok otomatis kembali ke jadwal mingguan.'+(D.khusus?' <b>Sedang memakai jadwal khusus.</b>':'')+'</p>'+
+   '<div class="jd">'+KJ.map(k=>'<div><label>'+k[1]+'</label><input type="time" data-k="'+k[0]+'" value="'+esc(j[k[0]]||'')+'"></div>').join('')+
+   '<div><label>Batas terlambat piket</label><input type="time" data-k="telatPiket" value="'+esc(D.telatPiket||'')+'"></div></div>'+
+   (ubah?'<div class="row" style="margin-top:12px"><button class="btn ok" id="hiOk">Simpan untuk Hari Ini</button>'+(D.khusus?'<button class="btn gray" id="hiBalik">Kembalikan ke jadwal mingguan</button>':'')+'</div>':'')+'</div>';
+  if(!ubah){el.querySelectorAll('input').forEach(x=>x.disabled=true);return;}
+  pasangSimpanUbah(el,'hiOk');
+  $('hiOk').onclick=aman(async()=>{
+    const jam={};let tp='';
+    el.querySelectorAll('input[data-k]').forEach(i=>{if(i.dataset.k==='telatPiket')tp=i.value;else jam[i.dataset.k]=i.value;});
+    busy(true);const r=await api('simpanJadwalHariIni',SES.token,{jam,telatPiket:tp});busy(false);
+    toast(r.pesan||'Selesai',4000);if(r.ok){await muatCfg();mHariIni(el,ubah);}
+  });
+  if($('hiBalik'))$('hiBalik').onclick=aman(async()=>{
+    if(!confirm('Kembalikan hari ini ke jadwal mingguan?'))return;
+    busy(true);const r=await api('hapusJadwalHariIni',SES.token);busy(false);
+    toast(r.pesan||'Selesai',4000);await muatCfg();mHariIni(el,ubah);
+  });
+}
+
+/* ---------- Reset Absen (hari ini saja; foto + jam + status satu sesi dihapus permanen) ---------- */
+async function mReset(el,ubah){
+  const [L,FT]=await Promise.all([api('getResetList',SES.token),api('getFotoReset',SES.token).catch(()=>({}))]);
+  const rows=L.map((x,i)=>{
+    const u=(FT[x.id]||{})[x.sesi];
+    const f=u?'<img class="fto" data-z="1" src="'+u+'" alt="foto">':(x.foto==='exp'?'<span class="muted">foto dihapus</span>':(x.foto==='ada'?'<div class="fto kos"></div>':'<span class="muted">-</span>'));
+    return [i+1,esc(x.nama),x.sesi==='pagi'?'Pagi':'Siang',esc(x.jam)+(x.st?'<div class="sub">'+tag(x.st,stCls(x.st))+'</div>':''),f,
+      ubah?'<button class="btn sm bad" data-id="'+esc(x.id)+'" data-s="'+x.sesi+'" data-n="'+esc(x.nama)+'">Reset</button>':''];
+  });
+  el.innerHTML='<div class="box"><h3>Reset Absen Hari Ini ('+L.length+')</h3><p class="muted" style="margin-bottom:8px">Untuk salah kenali wajah. Reset menghapus permanen foto, jam, dan status absen sesi itu, sehingga guru yang benar bisa absen ulang. Tercatat di Log.</p>'+
+   tabel(['No','Nama','Sesi','Jam','Foto',''],rows,2)+'</div>';
+  el.onclick=aman(async e=>{
+    const z=e.target.closest('[data-z]');if(z){fzBuka(z.src);return;}
+    const b=e.target.closest('button[data-id]');if(!b)return;
+    const s=b.dataset.s==='pagi'?'pagi':'siang';
+    if(!confirm('Hapus foto dan absen '+b.dataset.n+' sesi '+s+'?'))return;
+    busy(true);const r=await api('resetAbsen',SES.token,b.dataset.id,b.dataset.s);busy(false);
+    toast(r.pesan||'Selesai',4000);mReset(el,ubah);
+  });
+}
+
+/* ---------- Jadwal Absen (mingguan + batas terlambat piket + jadwal khusus tanggal) ---------- */
 async function mJadwal(el,ubah){
   const S=await api('getSettings',SES.token);
-  const HJ=['','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-  const KJ=[['pagiBuka','Pagi buka'],['pagiTutup','Pagi tutup'],['telat','Batas terlambat'],['siangBuka','Siang buka'],['siangTutup','Siang tutup']];
+  const HJ=['','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'],hari=tglIso(wib());
   const ban=S.jadwalKurang.length?'<div class="alert">⚠️ Jadwal belum lengkap, tablet belum bisa dipakai pada hari: '+esc(S.jadwalKurang.join(', '))+'. Isi kelima jam pada hari tersebut.</div>':'';
   const jdHtml=[1,2,3,4,5,6].map(w=>'<div class="box"><h3>'+HJ[w]+'</h3><div class="jd">'+KJ.map(k=>
     '<div><label>'+k[1]+'</label><input type="time" data-w="'+w+'" data-k="'+k[0]+'" value="'+esc((S.jadwal[w]||{})[k[0]]||'')+'"></div>').join('')+'</div></div>').join('');
-  el.innerHTML=ban+
-   '<div class="box"><h3>Jadwal Absen Harian</h3><p class="muted">Isi jam tiap hari. Hari yang dikosongkan = tidak ada absen. Minggu otomatis libur.</p>'+
+  const kh=S.khusus||[];
+  el.innerHTML=ban+'<div id="jdW">'+
+   '<div class="box"><h3>Jadwal Absen</h3><p class="muted">Jadwal mingguan, berlaku terus tiap pekan. Hari yang dikosongkan = tidak ada absen. Minggu otomatis libur. Untuk mengubah satu tanggal saja, pakai Jadwal Khusus Tanggal di bawah.</p>'+
    '<button class="btn sm gray" id="jdSalin" style="margin-top:8px">Salin jam Senin ke semua hari</button></div>'+jdHtml+
-   '<button class="btn ok" id="jdOk" style="width:100%;margin-bottom:14px">Simpan Jadwal</button>';
+   '<div class="box"><h3>Batas Terlambat Piket</h3><p class="muted" style="margin-bottom:6px">Guru yang piket hari itu dihitung terlambat bila absen lewat jam ini (bila lebih awal dari batas biasa).</p>'+
+   '<input type="time" id="jdTP" value="'+esc(S.telatPiket||'07:15')+'" style="max-width:160px"></div>'+
+   '<button class="btn ok" id="jdOk" style="width:100%;margin-bottom:14px">Simpan Jadwal</button></div>'+
+   '<div class="box" id="jdK"><h3>Jadwal Khusus Tanggal</h3><p class="muted" style="margin-bottom:8px">Ubah jadwal untuk satu tanggal (hari ini atau yang akan datang). Setelah lewat, otomatis kembali ke jadwal mingguan.</p>'+
+   (ubah?'<label>Tanggal</label><input type="date" id="khT" value="'+hari+'" min="'+hari+'"><div class="jd" style="margin-top:6px">'+KJ.map(k=>'<div><label>'+k[1]+'</label><input type="time" data-kh="'+k[0]+'"></div>').join('')+'<div><label>Batas terlambat piket</label><input type="time" data-kh="telatPiket"></div></div>'+
+     '<button class="btn ok" id="khOk" style="margin-top:12px;width:100%">Simpan Jadwal Khusus</button>':'')+
+   '<div style="margin-top:12px">'+tabel(['Tanggal','Pagi','Telat','Siang','Piket',''],kh.map(k=>[esc(k.tgl),esc(k.pagiBuka+'-'+k.pagiTutup),esc(k.telat),esc(k.siangBuka+'-'+k.siangTutup),esc(k.telatPiket||'-'),
+     ubah?'<button class="btn sm bad" data-kd="'+esc(k.tgl)+'">Hapus</button>':'']),1)+'</div></div>';
   if(!ubah){el.querySelectorAll('input,select,textarea,button').forEach(x=>x.disabled=true);return;}
-  pasangSimpanUbah(el,'jdOk');
+  const W=$('jdW');
+  pasangSimpanUbah(W,'jdOk');
   $('jdOk').onclick=aman(async()=>{
-    const jd={};el.querySelectorAll('input[data-w]').forEach(i=>{(jd[i.dataset.w]=jd[i.dataset.w]||{})[i.dataset.k]=i.value;});
-    busy(true);const r=await api('simpanSettings',SES.token,{jadwal:jd});busy(false);
-    toast(r.ok?'Jadwal tersimpan':r.pesan);if(r.ok){await muatCfg();mJadwal(el,ubah);}
+    const jd={};W.querySelectorAll('input[data-w]').forEach(i=>{(jd[i.dataset.w]=jd[i.dataset.w]||{})[i.dataset.k]=i.value;});
+    busy(true);const r=await api('simpanSettings',SES.token,{jadwal:jd,telatPiket:$('jdTP').value});busy(false);
+    toast(r.ok?'Jadwal tersimpan':r.pesan,3500);if(r.ok){await muatCfg();mJadwal(el,ubah);}
+  });
+  $('khOk').onclick=aman(async()=>{
+    const jam={};let tp='';
+    $('jdK').querySelectorAll('input[data-kh]').forEach(i=>{if(i.dataset.kh==='telatPiket')tp=i.value;else jam[i.dataset.kh]=i.value;});
+    busy(true);const r=await api('simpanJadwalKhusus',SES.token,{tgl:$('khT').value,jam,telatPiket:tp});busy(false);
+    toast(r.pesan||'Selesai',4000);if(r.ok){await muatCfg();mJadwal(el,ubah);}
   });
   el.onclick=aman(async e=>{
-    const b=e.target.closest('button');if(!b||b.id!=='jdSalin')return;
-    el.querySelectorAll('input[data-w="1"]').forEach(i=>{el.querySelectorAll('input[data-k="'+i.dataset.k+'"]').forEach(x=>{x.value=i.value;});});
-    el.oninput();toast('Disalin. Tekan Simpan Jadwal.');
+    const b=e.target.closest('button');if(!b)return;
+    if(b.id==='jdSalin'){
+      W.querySelectorAll('input[data-w="1"]').forEach(i=>{W.querySelectorAll('input[data-k="'+i.dataset.k+'"]').forEach(x=>{x.value=i.value;});});
+      W.oninput();toast('Disalin. Tekan Simpan Jadwal.');
+    }else if(b.dataset.kd){
+      if(!confirm('Hapus jadwal khusus '+b.dataset.kd+'?'))return;
+      busy(true);const r=await api('hapusJadwalKhusus',SES.token,b.dataset.kd);busy(false);
+      toast(r.pesan||'Selesai');await muatCfg();mJadwal(el,ubah);
+    }
   });
 }
 
@@ -1480,7 +1996,7 @@ async function mTablet(el,ubah){
 /* ---------- Hak Akses ---------- */
 async function mHak(el,ubah){
   const S=await api('getSettings',SES.token);
-  const aks=['dash','guru','absen','status','rekap','libur','hak','pin','tablet','jadwal']; // Pengaturan, Log, Backup tidak boleh untuk Kepsek/Wakil
+  const aks=['dash','absen','status','rekap','libur','hak','pin','tablet','jadwal','hariini','reset']; // Pengaturan, Log, Backup tidak boleh untuk Kepsek/Wakil
   const nm=Object.fromEntries(MENU_DEF.map(m=>[m.k,m.l]));
   const lvl=(r,k)=>'<select class="hkSel" data-r="'+r+'" data-k="'+k+'">'+opt([[0,'Tidak ada'],[1,'Lihat'],[2,'Edit']],(S.akses[r]||{})[k]|0)+'</select>';
   el.innerHTML='<div class="hkTop"><button class="btn ok" id="hkOk">Simpan Perubahan</button></div>'+
@@ -1518,6 +2034,7 @@ async function mBackup(el,ubah){
   kunciBack();
   MODE=await ambilMode();
   if(MODE==='tablet'){initTablet();}
+  else if(MODE==='guru'){initGuru();}
   else{mulaiJam();initLogin();}
 })();
 </script>

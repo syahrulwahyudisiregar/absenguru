@@ -1,11 +1,11 @@
-// Service worker Ver. 005
+// Service worker Ver. 007
 // - File aplikasi: network-first (update index.html langsung terbaca), cadangan dari cache.
 // - Script & model face-api (cdn.jsdelivr.net): cache-first, tersimpan setelah tablet dibuka sekali dengan internet,
 //   sehingga tablet tetap bisa menyala saat internet mati.
 // - Request ke Google Apps Script TIDAK di-cache (selalu online).
-const CACHE = 'absensi-v5';
+const CACHE = 'absensi-v7';
 const CDN_CACHE = 'absensi-cdn-v1';
-const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const FILES = ['./', './index.html', './manifest.json', './manifest-guru.json', './icon-192.png', './icon-512.png', './icon-guru-192.png'];
 const FACE_JS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js';
 
 self.addEventListener('install', e => {
@@ -41,5 +41,5 @@ self.addEventListener('fetch', e => {
   if (u.origin !== location.origin) return;
   e.respondWith(fetch(e.request).then(r => {
     const c = r.clone(); caches.open(CACHE).then(ch => ch.put(e.request, c)); return r;
-  }).catch(() => caches.match(e.request)));
+  }).catch(() => caches.match(e.request, { ignoreSearch: true })));
 });
