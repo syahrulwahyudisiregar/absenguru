@@ -212,6 +212,12 @@ table.fit th:first-child,table.fit td:first-child{width:26px;text-align:center}
 #gPrev{position:fixed;inset:0;z-index:58;background:rgba(15,23,42,.94);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:18px}
 #gPrev.show{display:flex}
 #gPrevImg{width:min(88vw,380px);max-height:60vh;object-fit:contain;border-radius:14px;background:#000}
+#konf{position:fixed;inset:0;z-index:70;background:rgba(15,23,42,.94);display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}
+#konf.show{display:flex}
+#konf .kq{font-size:clamp(20px,4vw,34px);font-weight:700;color:#fff}
+#konf .kn{font-size:clamp(26px,6vw,56px);font-weight:800;color:#fff;margin:6px 0}
+#konf .btn{min-width:150px;font-size:20px;padding:16px 24px}
+#konf .ks{color:#cbd5e1;font-size:14px}
 </style>
 </head>
 <body>
@@ -342,6 +348,8 @@ table.fit th:first-child,table.fit td:first-child{width:26px;text-align:center}
   <button class="btn" id="btnBuka">Buka kembali</button>
 </div>
 
+<!-- ===== KONFIRMASI IDENTITAS (tablet & HP guru) ===== -->
+<div id="konf"><div class="kq">Apakah ini Anda?</div><div id="konfNama" class="kn"></div><div class="row"><button class="btn gray" id="konfBukan">Bukan</button><button class="btn ok" id="konfYa">Ya</button></div><div id="konfSisa" class="ks"></div></div>
 <div id="loading">Memproses...</div>
 <div id="toast"></div>
 <div id="fz"><img alt="Foto absen"></div>
@@ -704,6 +712,20 @@ function gagalWajah(j,ambigu){
   setTimeout(()=>{TB.lock=false;TB.lv=null;setStage('');},2500);
 }
 
+/* ---- konfirmasi identitas: Ya = lanjut; Bukan atau tidak dijawab 10 detik = batal ---- */
+function konfirmasi(nm){
+  return new Promise(res=>{
+    const el=$('konf');$('konfNama').textContent=nm;el.classList.add('show');
+    let sisa=10,t=0;
+    const tulis=()=>{$('konfSisa').textContent='Tekan Ya atau Bukan ('+sisa+' detik)';};
+    const selesai=ok=>{clearInterval(t);el.classList.remove('show');$('konfYa').onclick=null;$('konfBukan').onclick=null;res(ok);};
+    tulis();
+    t=setInterval(()=>{sisa--;if(sisa<=0)selesai(false);else tulis();},1000);
+    $('konfYa').onclick=()=>selesai(true);
+    $('konfBukan').onclick=()=>selesai(false);
+  });
+}
+
 /* ---- kenali wajah (1 frame bagus) ---- */
 async function proses(){
   TB.lock=true;setStage('scan');setPesan('Memeriksa wajah...');
@@ -712,7 +734,12 @@ async function proses(){
   const d=await ambilDesk($('vid'));
   if(!d){TB.lock=false;return 100;}
   const m=cocok(d);
-  if(diterima(m)){TB.gagal=0;await kirimAbsen(m.g,S);}
+  if(diterima(m)){
+    TB.gagal=0;
+    const ya=await konfirmasi(sp(m.g)+' '+m.g.nama);
+    if(ya)await kirimAbsen(m.g,S);
+    else{api('logGagal',devId(),Math.round(m.j*100)/100).catch(()=>{});TB.lock=false;TB.lv=null;setStage('');setPesan('Arahkan wajah ke kamera');}
+  }
   else gagalWajah(m.j,!!(m.g&&m.j<=CFG.threshold)); // dekat tapi mirip guru lain = kurang jelas
   return 150;
 }
@@ -1305,7 +1332,14 @@ async function gLangkah(){
   setPesanG('Memeriksa wajah...');
   const d=await ambilDesk(vid);
   if(!d)return 100;
-  if(jarakSaya(d)<=AMBANG_SAYA()){await gKirim(false,sk,ambilFoto(vid));return 300;}
+  if(jarakSaya(d)<=AMBANG_SAYA()){
+    GR.lock=true; // tahan loop selama konfirmasi
+    const foto=ambilFoto(vid),nm=(GR.info.sapaan?GR.info.sapaan+' ':'')+(GR.info.nama||SES.nama);
+    const ya=await konfirmasi(nm);
+    if(ya){await gKirim(false,sk,foto);}
+    else{api('logGagal',devId(),Math.round(jarakSaya(d)*100)/100).catch(()=>{});GR.lock=false;GR.t0=0;GR.phase='cari';setPesanG('Arahkan wajah ke kamera');}
+    return 300;
+  }
   setPesanG('Wajah belum cocok, hadap lurus ke kamera');
   return 150;
 }
